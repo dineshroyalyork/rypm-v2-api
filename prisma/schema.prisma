@@ -1,0 +1,75 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL") 
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+/* schema.prisma */
+
+//
+// ---------------------------
+//  ✅ Main Schema Starts Here
+// ---------------------------
+//
+
+// ========== TENANTS ==========
+model tenants {
+  id             String          @id @default(uuid())
+  first_name     String
+  last_name      String
+  country_code   String?
+  email          String          @unique
+  phone_number   String          @unique
+  is_email_verified Boolean  @default(false)
+  is_phone_verified Boolean  @default(false)
+  notifications_enabled Boolean @default(true) 
+  password       String?         // nullable for SSO/magic link logins
+  created_at     DateTime        @default(now())
+  updated_at     DateTime        @updatedAt
+
+  // relations
+  otp_requests   otp_requests[]
+  device_tokens  device_tokens[]
+  login_methods  login_methods[]
+}
+
+// ==========  OTP REQUESTS ==========
+model otp_requests {
+  id           String     @id @default(uuid())
+  identifier   String     // phone or email
+  otp          String
+  expires_at   DateTime
+  verified     Boolean    @default(false)
+  created_at   DateTime   @default(now())
+
+  // relation
+  tenant_id    String?
+  tenant       tenants?   @relation(fields: [tenant_id], references: [id])
+}
+
+// ========== LOGIN METHODS ==========
+model login_methods {
+  id           String     @id @default(uuid())
+  provider     String     // "google" | "apple" | "facebook" | "magic-link"
+  provider_id  String     // unique ID from provider
+  created_at   DateTime   @default(now())
+
+  // relation
+  tenant_id    String
+  tenant       tenants     @relation(fields: [tenant_id], references: [id])
+}
+
+// ========== DEVICE TOKENS ==========
+model device_tokens {
+  id           String     @id @default(uuid())
+  token        String     // FCM or APNs token
+  platform     String     // "ios" | "android" | "web"
+  created_at   DateTime   @default(now())
+
+  // relation
+  tenant_id    String
+  tenant       tenants     @relation(fields: [tenant_id], references: [id])
+}
