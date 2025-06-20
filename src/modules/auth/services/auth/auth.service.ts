@@ -41,6 +41,8 @@ export class AuthService {
     return { message: "OTP sent successfully" };
   }
 }
+
+
 function generateOtp() {
   throw new Error("Function not implemented.");
 }

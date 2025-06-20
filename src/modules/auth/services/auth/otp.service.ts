@@ -22,11 +22,22 @@ export class OtpService {
   async sendSmsOtp(phone: string, otp: string): Promise<void> {
     const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
     await this.twilioClient.messages.create({
-      body: `Your OTP is ${otp}`,
+      body: ` Royal York Property Management: Your OTP is ${otp}.
+
+Use this to verify your identity. It is valid for 5 minutes.
+
+🏡 Find your next rental or book a showing anytime at www.royalyorkpropertymanagement.ca.
+
+⚠️ Do not share this code with anyone for security reasons.`,
       from: this.configService.get<string>('TWILIO_PHONE_NUMBER'),
       to: formattedPhone,
     });
   }
+
+
+  
+
+
 
 //   async sendEmailOtp(email: string, otp: string): Promise<void> {
 //     const transporter = nodemailer.createTransport({
