@@ -22,20 +22,16 @@ export class OtpService {
   async sendSmsOtp(phone: string, otp: string): Promise<void> {
     const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
     await this.twilioClient.messages.create({
-      body: ` Royal York Property Management: Your OTP is ${otp}.
+      body: `  Your RYPM verification code:
+${otp}.
 
-Use this to verify your identity. It is valid for 5 minutes.
+This code will expire in 5 minutes.
 
-🏡 Find your next rental or book a showing anytime at www.royalyorkpropertymanagement.ca.
-
-⚠️ Do not share this code with anyone for security reasons.`,
+Don’t share this code with anyone.`,
       from: this.configService.get<string>('TWILIO_PHONE_NUMBER'),
       to: formattedPhone,
     });
   }
-
-
-  
 
 
 
