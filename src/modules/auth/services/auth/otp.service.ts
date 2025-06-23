@@ -22,9 +22,8 @@ export class OtpService {
   async sendSmsOtp(phone: string, otp: string): Promise<void> {
     const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
     await this.twilioClient.messages.create({
-      body: `  Your RYPM verification code:
-${otp}.
-
+      body: `  Your RYPM verification code: ${otp}.
+      
 This code will expire in 5 minutes.
 
 Don’t share this code with anyone.`,
