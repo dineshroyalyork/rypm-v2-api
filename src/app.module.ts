@@ -8,11 +8,11 @@ import { MapModule } from "./modules/map/map.module";
 import { LocationModule } from "./modules/location/location.module";
 import { ZohoModule } from "./modules/zoho/zoho.module";
 import { ConfigModule } from "@nestjs/config";
-import { PrismaModule } from "@/shared/prisma/prisma.module";
+import { SharedModule } from "@/shared/shared.module";
 
 @Module({
   imports: [
-    PrismaModule,
+    SharedModule,
     ConfigModule.forRoot({
       isGlobal: true, // Makes env config available everywhere
       envFilePath: ".env", // Default .env file
