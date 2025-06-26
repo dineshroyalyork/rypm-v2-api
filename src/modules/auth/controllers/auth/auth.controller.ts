@@ -2,16 +2,22 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Patch,
   Post,
+  Req,
+  UseGuards,
   UsePipes,
 } from "@nestjs/common";
 import { ZodValidationPipe } from "nestjs-zod";
 import { SendOtpDto, sendOtpSchema } from "../../dto/send-otp.dto";
 import { VerifyOtpDto,verifyOtpSchema } from "../../dto/verify-otp.dto";
+import { completeOnboardingSchema,CompleteOnboardingDto } from "../../dto/complete-onboarding.dto";
 import { AuthService } from "../../services/auth/auth.service";
+import { AuthGuard } from "@/shared/guards/auth.guard";
+import { updateNotificationsSchema,UpdateNotificationsDto } from "../../dto/toggle-notifications.dto";
 //import { successResponse } from "@/shared/utils/response";
 
-@Controller({ path: "auth", version: "1" })
+@Controller({ path: "auth", version: "2" })
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
   @Post("send-otp")
@@ -71,4 +77,21 @@ export class AuthController {
     }
     
   }
+
+  @Post('complete-onboarding')
+  @UsePipes(new ZodValidationPipe(completeOnboardingSchema))
+  async completeOnboarding(@Body() completeOnboardingDto: CompleteOnboardingDto) {
+    return this.authService.completeOnboarding(completeOnboardingDto);
+  }
+
+  @UseGuards(AuthGuard)
+  @Patch('toggle-notifications')
+  @UsePipes(new ZodValidationPipe(updateNotificationsSchema))
+  async updateNotifications(
+  @Req() req,
+  @Body() updateNotificationsDto: UpdateNotificationsDto,
+) {
+  const tenantId = req.user.sub;
+  return this.authService.updateNotificationSetting(tenantId, updateNotificationsDto.notifications_enabled);
+}
 }
