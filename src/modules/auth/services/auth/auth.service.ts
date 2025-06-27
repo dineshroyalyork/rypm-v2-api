@@ -34,14 +34,15 @@ export class AuthService {
       },
     });
 
-    this.otpService.sendSmsOtp(identifier, otp);
+    
 
     // console.log(res);
-    // if (type === "email") {
-    //   await sendOtpViaEmail(email!, otp);
-    // } else {
-    //   await sendOtpViaSMS(`${country_code}${phone_number}`, otp);
-    // }
+    if (type === "email") {
+      this.otpService.sendOtpViaEmail(identifier, otp);
+    } else {
+      this.otpService.sendOtpViaSMS(identifier, otp);
+
+    }
 
     return { message: "OTP sent successfully" };
   }

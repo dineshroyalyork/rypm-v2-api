@@ -19,7 +19,7 @@ export class OtpService {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
-  async sendSmsOtp(phone: string, otp: string): Promise<void> {
+  async sendOtpViaSMS(phone: string, otp: string): Promise<void> {
     const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
     await this.twilioClient.messages.create({
       body: `  Your RYPM verification code: ${otp}.
@@ -34,22 +34,54 @@ Don’t share this code with anyone.`,
 
 
 
-//   async sendEmailOtp(email: string, otp: string): Promise<void> {
-//     const transporter = nodemailer.createTransport({
-//       host: this.configService.get<string>('SMTP_HOST'),
-//       port: +this.configService.get<string>('SMTP_PORT'),
-//       secure: false,
-//       auth: {
-//         user: this.configService.get<string>('SMTP_USER'),
-//         pass: this.configService.get<string>('SMTP_PASS'),
-//       },
-//     });
+ async sendOtpViaEmail(email: string, otp: string): Promise<void> {
+    const portStr = this.configService.get<string>('SMTP_PORT');
+    const port = portStr ? +portStr : 587; // default SMTP port fallback
 
-//     await transporter.sendMail({
-//       from: `"RYPM" <${this.configService.get<string>('SMTP_USER')}>`,
-//       to: email,
-//       subject: 'Your OTP Code',
-//       html: `<p>Your OTP code is: <strong>${otp}</strong></p>`,
-//     });
-//   }
+    console.log(`email: ${email} otp:${otp}`)
+
+     try {
+
+        const transporter = nodemailer.createTransport({
+          host: this.configService.get<string>('SMTP_HOST'),
+          port: port,
+          secure: false,
+          auth: {
+            user: this.configService.get<string>('SMTP_USER'),
+            pass: this.configService.get<string>('SMTP_PASS'),
+          },
+        });
+
+        const htmlContent = `
+          <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
+            <div style="max-width: 600px; margin: auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+              <h2 style="color: #333;">🔐 Email Verification</h2>
+              <p style="font-size: 16px; color: #555;">
+                Dear Tenant,
+              </p>
+              <p style="font-size: 16px; color: #555;">
+                Please use the following One-Time Password (OTP) to verify your email address:
+              </p>
+              <p style="font-size: 24px; font-weight: bold; color: #007bff;">${otp}</p>
+              <p style="font-size: 14px; color: #999;">
+                ⚠️ This OTP is valid for <strong>5 minutes</strong>. Do not share this code with anyone.
+              </p>
+              <hr style="margin: 20px 0;" />
+              <p style="font-size: 12px; color: #aaa;">Regards,<br/>Team RYPM</p>
+            </div>
+          </div>
+        `;
+
+        await transporter.sendMail({
+          from: `"RYPM" <${this.configService.get<string>('SMTP_USER')}>`,
+          to: email,
+          subject: 'Your OTP Code - RYPM',
+          html: htmlContent,
+        });
+
+     } catch (err) {
+      console.error('Email send failed:', err.message);
+      throw new Error('Email service temporarily unavailable. Please try again.');
+    }
+  }
 }
