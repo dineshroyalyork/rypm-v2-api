@@ -38,7 +38,7 @@ export class AuthService {
 
     
 
-    // console.log(res);
+    // console.log(res//);
     if (type === "email") {
       this.otpService.sendOtpViaEmail(identifier, otp);
     } else {

@@ -56,7 +56,7 @@ export class AuthController {
     try {
  
       const res = await this.authService.verifyOtp(verifyOtpDto);
-      return res;
+      return res; ///joo
     } catch (error) {
       console.error('Error occurred:', error);
       if (error instanceof BadRequestException) {
