@@ -6,6 +6,8 @@ import { CompleteOnboardingDto } from "../../dto/complete-onboarding.dto";
 import { JwtService } from '@nestjs/jwt';
 import { OtpService } from "./otp.service";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
+import { Prisma } from "@prisma/client";
+import { SocialLoginDto } from "../../dto/social-login.dto";
 
 @Injectable()
 export class AuthService {
@@ -44,59 +46,106 @@ export class AuthService {
 
     }
 
+    console.log(`otp:${otp} and identifier${identifier}`);
+
     return { message: "OTP sent successfully" };
   }
 
-  async verifyOtp(payload: VerifyOtpDto): Promise<{ message: string }> {
+  async verifyOtp(payload: VerifyOtpDto): Promise<{
+    statusCode: number;
+    status: boolean;
+    message: string;
+    data: {
+      access_token: string;
+      is_new_tenant: boolean;
+    };
+  }> {
     const { type, email, phone_number, country_code, otp } = payload;
-  
-    // Normalize country code and prepare identifier
+
     const normalizedCountryCode = country_code?.startsWith('+')
       ? country_code
       : `+${country_code}`;
-  
+
     const identifier =
-      type === 'email'
-        ? email!
-        : `${normalizedCountryCode}${phone_number!}`;
-  
-    // 1. Fetch latest OTP entry
+      type === 'email' ? email! : `${normalizedCountryCode}${phone_number!}`;
+
+
     const latestOtp = await this.prisma.otp_requests.findFirst({
       where: { identifier },
       orderBy: { created_at: 'desc' },
     });
-  
-    //console.log(latestOtp);
-    // 2. OTP not found
+
+ 
     if (!latestOtp) {
-      throw new BadRequestException('No OTP request found for this identifier');
+      throw new BadRequestException('No OTP request found for this identifier.');
     }
-  
-    // 3. OTP expired
+
     if (latestOtp.expires_at < new Date()) {
       throw new BadRequestException('OTP has expired. Please request a new one.');
     }
-  
-    // 4. OTP mismatch
-    if (latestOtp.otp !== otp) {
-      throw new BadRequestException('Invalid OTP. Please try again.');
-    }
-  
-    // 5. OTP already used
+
     if (latestOtp.verified) {
       throw new BadRequestException('This OTP has already been used.');
     }
-  
-    // 6. ✅ Mark OTP as verified
+
+    if (latestOtp.otp !== otp) {
+      throw new BadRequestException('Invalid OTP. Please try again.');
+    }
+
     await this.prisma.otp_requests.update({
       where: { id: latestOtp.id },
       data: { verified: true },
     });
+
   
+    const existingTenant = await this.prisma.tenants.findFirst({
+      where: {
+        OR: [
+          email ? { email } : undefined,
+          phone_number ? { phone_number } : undefined,
+        ].filter(Boolean) as Prisma.tenantsWhereInput[],
+      },
+    });
+
+    let tenant = existingTenant;
+    let isNewUser = false;
+
+    if (!tenant) {
+      tenant = await this.prisma.tenants.create({
+        data: {
+          email: email || '',
+          phone_number: phone_number || '',
+          country_code: country_code || '',
+          first_name: '', 
+          last_name: '',
+          is_email_verified: !!email,
+          is_phone_verified: !!phone_number,
+        },
+      });
+      isNewUser = true;
+    }
+
+
+    const token = this.jwtService.sign(
+      {
+        sub: tenant.id,
+        email: tenant.email,
+      },
+      { expiresIn: '30d' },
+    );
+
+   console.log(`isNewUser:${isNewUser}`);
     return {
-      message: 'OTP verified successfully',
+      statusCode: 200,
+      status: true,
+      message: 'OTP verified successfully.',
+      data: {
+        access_token: token,
+        is_new_tenant: isNewUser,
+      },
     };
   }
+
 
   async completeOnboarding(payload: CompleteOnboardingDto) {
     try {
@@ -187,7 +236,74 @@ export class AuthService {
       notifications_enabled: updatedTenant.notifications_enabled,
     },
   };
-}
+  }
+
+  async socialLogin(payload: SocialLoginDto) {
+    const { provider, provider_id } = payload;
+  
+    try {
+      const existingLogin = await this.prisma.login_methods.findFirst({
+        where: { provider, provider_id },
+        include: { tenant: true },
+      });
+  
+      if (existingLogin) {
+        const token = this.jwtService.sign(
+          { sub: existingLogin.tenant.id, email: existingLogin.tenant.email },
+          { expiresIn: '30d' },
+        );
+  
+        return {
+          statusCode: 200,
+          status: true,
+          message: 'Socail Login successful',
+          data: {
+            access_token: token,
+            is_new_tenant: false,
+          },
+        };
+      }
+  
+      const newTenant = await this.prisma.tenants.create({
+        data: {
+          first_name: '',
+          last_name: '',
+          email: '',
+          phone_number: '',
+          country_code: '',
+          password: '',
+        },
+      });
+      
+  
+      await this.prisma.login_methods.create({
+        data: {
+          provider,
+          provider_id,
+          tenant_id: newTenant.id,
+        },
+      });
+  
+      const tempToken = this.jwtService.sign(
+        { sub: newTenant.id },
+        { expiresIn: '30d' },
+      );
+  
+      return {
+        statusCode: 201,
+        status: true,
+        message: 'New social login, onboarding required',
+        data: {
+          access_token: tempToken,
+          is_new_tenant: true,
+        },
+      };
+    } catch (error) {
+      console.error('❌ Social Login Error:', error);
+      throw new InternalServerErrorException('Failed to login via social provider');
+    }
+  }
+  
 
 }
 

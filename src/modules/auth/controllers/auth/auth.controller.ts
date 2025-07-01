@@ -15,6 +15,7 @@ import { completeOnboardingSchema,CompleteOnboardingDto } from "../../dto/comple
 import { AuthService } from "../../services/auth/auth.service";
 import { AuthGuard } from "@/shared/guards/auth.guard";
 import { updateNotificationsSchema,UpdateNotificationsDto } from "../../dto/toggle-notifications.dto";
+import { socialLoginSchema,SocialLoginDto } from "../../dto/social-login.dto";
 //import { successResponse } from "@/shared/utils/response";
 
 @Controller({ path: "auth", version: "2" })
@@ -34,6 +35,7 @@ export class AuthController {
       }
 
     } catch (error) {
+      console.log(error);
       return {
         "statusCode": 404,
         "status": false,
@@ -53,12 +55,8 @@ export class AuthController {
 
     try {
  
-      await this.authService.verifyOtp(verifyOtpDto);
-      return {
-        statusCode: 200,
-        status: true,
-        message: 'OTP verified successfully',
-      };
+      const res = await this.authService.verifyOtp(verifyOtpDto);
+      return res;
     } catch (error) {
       console.error('Error occurred:', error);
       if (error instanceof BadRequestException) {
@@ -76,6 +74,13 @@ export class AuthController {
       };
     }
     
+  }
+
+
+  @Post('social-login')
+  @UsePipes(new ZodValidationPipe(socialLoginSchema))
+  async socialLogin(@Body() socialLoginDto: SocialLoginDto) {
+    return this.authService.socialLogin(socialLoginDto);
   }
 
   @Post('complete-onboarding')
