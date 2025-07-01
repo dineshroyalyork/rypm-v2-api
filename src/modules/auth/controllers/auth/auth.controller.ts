@@ -7,54 +7,67 @@ import {
   Req,
   UseGuards,
   UsePipes,
-} from "@nestjs/common";
-import { ZodValidationPipe } from "nestjs-zod";
-import { SendOtpDto, sendOtpSchema } from "../../dto/send-otp.dto";
-import { VerifyOtpDto,verifyOtpSchema } from "../../dto/verify-otp.dto";
-import { completeOnboardingSchema,CompleteOnboardingDto } from "../../dto/complete-onboarding.dto";
-import { AuthService } from "../../services/auth/auth.service";
-import { AuthGuard } from "@/shared/guards/auth.guard";
-import { updateNotificationsSchema,UpdateNotificationsDto } from "../../dto/toggle-notifications.dto";
-import { socialLoginSchema,SocialLoginDto } from "../../dto/social-login.dto";
+} from '@nestjs/common';
+import { ZodValidationPipe } from 'nestjs-zod';
+import { SendOtpDto, sendOtpSchema } from '../../dto/send-otp.dto';
+import { VerifyOtpDto, verifyOtpSchema } from '../../dto/verify-otp.dto';
+import {
+  completeOnboardingSchema,
+  CompleteOnboardingDto,
+} from '../../dto/complete-onboarding.dto';
+import { AuthService } from '../../services/auth/auth.service';
+import { AuthGuard } from '@/shared/guards/auth.guard';
+import {
+  updateNotificationsSchema,
+  UpdateNotificationsDto,
+} from '../../dto/toggle-notifications.dto';
+import { socialLoginSchema, SocialLoginDto } from '../../dto/social-login.dto';
+import {
+  CreatePasswordDto,
+  createPasswordSchema,
+} from '../../dto/create-password.dto';
+import {
+  LoginWithEmailDto,
+  loginWithEmailSchema,
+} from '../../dto/login-with-email.dto';
+import { Request } from 'express';
 //import { successResponse } from "@/shared/utils/response";
 
-@Controller({ path: "auth", version: "2" })
+@Controller({ path: 'auth', version: '2' })
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
-  @Post("send-otp")
+  @Post('send-otp')
   @UsePipes(new ZodValidationPipe(sendOtpSchema))
   async sendOtp(@Body() sendOtpDto: SendOtpDto) {
     try {
       const result = await this.authService.sendOtp(sendOtpDto); // Needed to catch error here
       //return successResponse(null, result.message, 201);
       return {
-        "statusCode": 201,
-        "status": true,
-        "message": "OTP has been sent successfully.",
-        "data": {}
-      }
-
+        statusCode: 201,
+        status: true,
+        message: 'OTP has been sent successfully.',
+        data: {},
+      };
     } catch (error) {
-      console.log(error);
-      return {
-        "statusCode": 404,
-        "status": false,
-        "message": "something went wrong please try again.",
-        "data": {}
-      }
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      throw new BadRequestException(error.message);
-    }
+      // Extract proper error message
+      const errorMessage =
+        error?.response?.message ||
+        error?.message ||
+        'Something went wrong, please try again.';
 
-    return sendOtpDto;
+      return {
+        statusCode: 400,
+        status: false,
+        message: errorMessage,
+        data: {},
+      };
+    }
   }
 
   @Post('verify-otp')
   @UsePipes(new ZodValidationPipe(verifyOtpSchema))
   async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
-
     try {
- 
       const res = await this.authService.verifyOtp(verifyOtpDto);
       return res; ///joo
     } catch (error) {
@@ -73,9 +86,7 @@ export class AuthController {
         error: error.message, // Include the error message
       };
     }
-    
   }
-
 
   @Post('social-login')
   @UsePipes(new ZodValidationPipe(socialLoginSchema))
@@ -83,20 +94,44 @@ export class AuthController {
     return this.authService.socialLogin(socialLoginDto);
   }
 
+  @UseGuards(AuthGuard)
   @Post('complete-onboarding')
   @UsePipes(new ZodValidationPipe(completeOnboardingSchema))
-  async completeOnboarding(@Body() completeOnboardingDto: CompleteOnboardingDto) {
-    return this.authService.completeOnboarding(completeOnboardingDto);
+  async completeOnboarding(
+     @Req() req,
+    @Body() completeOnboardingDto: CompleteOnboardingDto,
+  ) {
+    const tenantId = req.user.sub;
+    return this.authService.completeOnboarding(tenantId,completeOnboardingDto);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('create-password')
+  @UsePipes(new ZodValidationPipe(createPasswordSchema))
+  async createPassword(
+    @Req() req,
+    @Body() createPasswordDto: CreatePasswordDto,
+  ) {
+    const tenantId = req.user.sub;
+    return this.authService.createPassword(tenantId, createPasswordDto);
   }
 
   @UseGuards(AuthGuard)
   @Patch('toggle-notifications')
   @UsePipes(new ZodValidationPipe(updateNotificationsSchema))
   async updateNotifications(
-  @Req() req,
-  @Body() updateNotificationsDto: UpdateNotificationsDto,
-) {
-  const tenantId = req.user.sub;
-  return this.authService.updateNotificationSetting(tenantId, updateNotificationsDto.notifications_enabled);
-}
+    @Req() req,
+    @Body() updateNotificationsDto: UpdateNotificationsDto,
+  ) {
+    const tenantId = req.user.sub;
+    return this.authService.updateNotificationSetting(
+      tenantId,
+      updateNotificationsDto.notifications_enabled,
+    );
+  }
+  @UsePipes(new ZodValidationPipe(loginWithEmailSchema))
+  @Post('login/email-password')
+  async loginWithEmail(@Body() loginWithEmailDto: LoginWithEmailDto) {
+    return this.authService.loginWithEmailPassword(loginWithEmailDto);
+  }
 }

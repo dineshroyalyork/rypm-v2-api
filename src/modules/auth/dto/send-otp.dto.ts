@@ -11,6 +11,7 @@ export const sendOtpSchema = z
     country_code: z.string().min(1).optional(),
     phone_number: z.string().min(5).optional(),
     email: z.string().email().optional(),
+    check_exists: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.type === "phone") {
