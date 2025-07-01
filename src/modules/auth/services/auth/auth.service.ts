@@ -153,7 +153,6 @@ export class AuthService {
       { expiresIn: '30d' },
     );
 
-    console.log(`isNewUser:${isNewUser}`);
     return {
       statusCode: 200,
       status: true,
@@ -176,6 +175,19 @@ export class AuthService {
         device_token,
         platform,
       } = payload;
+
+      const existing = await this.prisma.tenants.findUnique({
+        where: { id: tenantId },
+      });
+
+      if (!existing) {
+          throw new NotFoundException({
+          statusCode: 400,
+          status: false,
+          message: 'No tenant account is linked with this token',
+          data: {},
+        });
+      }
 
       const tenant = await this.prisma.tenants.update({
         where: { id: tenantId },
@@ -231,9 +243,12 @@ export class AuthService {
 
       if (err instanceof BadRequestException) throw err;
 
-      throw new InternalServerErrorException(
-        'Failed to complete onboarding. Try again later.',
-      );
+        throw new NotFoundException({
+          statusCode: 400,
+          status: false,
+          message: 'No tenant account is linked with this token',
+          data: {},
+        });
     }
   }
 
