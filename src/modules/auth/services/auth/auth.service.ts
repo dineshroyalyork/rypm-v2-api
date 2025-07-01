@@ -154,7 +154,7 @@ export class AuthService {
     );
 
     return {
-      statusCode: 200,
+      statusCode: 201,
       status: true,
       message: 'OTP verified successfully.',
       data: {
@@ -372,7 +372,7 @@ export class AuthService {
     });
 
     return {
-      statusCode: 200,
+      statusCode: 201,
       status: true,
       message: 'Password created successfully',
       data: {},
