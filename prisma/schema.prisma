@@ -1,13 +1,15 @@
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL") 
+  url      = env("DATABASE_URL")
 }
 
 generator client {
   provider = "prisma-client-js"
 }
 
-/* schema.prisma */
+/**
+ * schema.prisma
+ */
 
 //
 // ---------------------------
@@ -17,60 +19,92 @@ generator client {
 
 // ========== TENANTS ==========
 model tenants {
-  id                    String          @id @default(uuid())
-  first_name            String?         // optional
-  last_name             String?         // optional
-  country_code          String?         // optional
-  email                 String?         //optional
-  phone_number          String?         // optional
-  is_email_verified     Boolean         @default(false)
-  is_phone_verified     Boolean         @default(false)
-  notifications_enabled Boolean         @default(true)
-  password              String?         // optional for SSO/magic link
-  created_at            DateTime        @default(now())
-  updated_at            DateTime        @updatedAt
+  id                    String   @id @default(uuid())
+  first_name            String?
+  last_name             String?
+  country_code          String?
+  email                 String?
+  phone_number          String?
+  is_email_verified     Boolean  @default(false)
+  is_phone_verified     Boolean  @default(false)
+  notifications_enabled Boolean  @default(true)
+  password              String?
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
 
   // relations
-  otp_requests          otp_requests[]
-  device_tokens         device_tokens[]
-  login_methods         login_methods[]
+  otp_requests  otp_requests[]
+  device_tokens device_tokens[]
+  login_methods login_methods[]
+  wishlists     Wishlist[] // 👈 back-reference added here
 }
-
 
 // ==========  OTP REQUESTS ==========
 model otp_requests {
-  id           String     @id @default(uuid())
-  identifier   String     // phone or email
-  otp          String
-  expires_at   DateTime
-  verified     Boolean    @default(false)
-  created_at   DateTime   @default(now())
+  id         String   @id @default(uuid())
+  identifier String // phone or email
+  otp        String
+  expires_at DateTime
+  verified   Boolean  @default(false)
+  created_at DateTime @default(now())
 
   // relation
-  tenant_id    String?
-  tenant       tenants?   @relation(fields: [tenant_id], references: [id])
+  tenant_id String?
+  tenant    tenants? @relation(fields: [tenant_id], references: [id])
 }
 
 // ========== LOGIN METHODS ==========
 model login_methods {
-  id           String     @id @default(uuid())
-  provider     String     // "google" | "apple" | "facebook" | "magic-link"
-  provider_id  String     // unique ID from provider
-  created_at   DateTime   @default(now())
+  id          String   @id @default(uuid())
+  provider    String // "google" | "apple" | "facebook" | "magic-link"
+  provider_id String // unique ID from provider
+  created_at  DateTime @default(now())
 
   // relation
-  tenant_id    String
-  tenant       tenants     @relation(fields: [tenant_id], references: [id])
+  tenant_id String
+  tenant    tenants @relation(fields: [tenant_id], references: [id])
 }
 
 // ========== DEVICE TOKENS ==========
 model device_tokens {
-  id           String     @id @default(uuid())
-  token        String     // FCM or APNs token
-  platform     String     // "ios" | "android" | "web"
-  created_at   DateTime   @default(now())
+  id         String   @id @default(uuid())
+  token      String // FCM or APNs token
+  platform   String // "ios" | "android" | "web"
+  created_at DateTime @default(now())
 
   // relation
-  tenant_id    String
-  tenant       tenants     @relation(fields: [tenant_id], references: [id])
+  tenant_id String
+  tenant    tenants @relation(fields: [tenant_id], references: [id])
+}
+
+model Property {
+  id          String         @id @default(uuid())
+  title       String
+  description String?
+  imageUrls   String[] // Array of image URLs
+  price       Float
+  wishlists   WishlistItem[]
+}
+
+model Wishlist {
+  id        String         @id @default(uuid())
+  name      String
+  tenantId  String
+  tenant    tenants        @relation(fields: [tenantId], references: [id])
+  items     WishlistItem[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model WishlistItem {
+  id         String @id @default(uuid())
+  wishlistId String
+  propertyId String
+
+  wishlist Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  addedAt DateTime @default(now())
+
+  @@unique([wishlistId, propertyId])
 }

@@ -9,6 +9,7 @@ import { LocationModule } from "./modules/location/location.module";
 import { ZohoModule } from "./modules/zoho/zoho.module";
 import { ConfigModule } from "@nestjs/config";
 import { SharedModule } from "@/shared/shared.module";
+import { WishlistModule } from './modules/wishlist/wishlist.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { SharedModule } from "@/shared/shared.module";
     MapModule,
     LocationModule,
     ZohoModule,
+    WishlistModule,
   ],
   controllers: [AppController],
   providers: [AppService],
