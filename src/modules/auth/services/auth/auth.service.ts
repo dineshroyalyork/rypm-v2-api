@@ -383,7 +383,7 @@ export class AuthService {
   async loginWithEmailPassword(payload: LoginWithEmailDto) {
     const { email, password } = payload;
 
-    const tenant = await this.prisma.tenants.findUnique({
+    const tenant = await this.prisma.tenants.findFirst({
       where: { email },
     });
 

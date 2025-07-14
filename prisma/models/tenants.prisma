@@ -1,0 +1,19 @@
+model tenants {
+    id                    String          @id @default(uuid())
+  first_name            String?         // optional
+  last_name             String?         // optional
+  country_code          String?         // optional
+  email                 String?         //optional
+  phone_number          String?         // optional
+  is_email_verified     Boolean         @default(false)
+  is_phone_verified     Boolean         @default(false)
+  notifications_enabled Boolean         @default(true)
+  password              String?         // optional for SSO/magic link
+  created_at            DateTime        @default(now())
+  updated_at            DateTime        @updatedAt
+
+  // relations
+  otp_requests          otp_requests[]
+  device_tokens         device_tokens[]
+  login_methods         login_methods[]
+}
