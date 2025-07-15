@@ -10,7 +10,7 @@ model tenants {
   notifications_enabled Boolean         @default(true)
   password              String?         // optional for SSO/magic link
   created_at            DateTime        @default(now())
-  updated_at            DateTime        @updatedAt
+  updated_at            DateTime        @default(now()) @updatedAt
 
   // relations
   otp_requests          otp_requests[]

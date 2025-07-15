@@ -8,8 +8,8 @@ export class PropertiesController {
   constructor(private readonly propertiesService: PropertiesService) {}
 
   @Post()
-  async create(@Body() body:CreatePropertyDto ) {
-    return this.propertiesService.create(body);
+  async create(@Body() createPropertyDto:CreatePropertyDto ) {
+    return this.propertiesService.create(createPropertyDto);
   
   }
 } 

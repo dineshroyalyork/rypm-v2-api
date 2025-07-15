@@ -7,10 +7,57 @@ import { Prisma } from '@prisma/client';
 export class PropertiesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // Fields that appear in Unit Features screen (go to property table)
+  private static readonly propertyFields = new Set([
+    'zcrm_id',
+    'available_date',
+    'property_condition',
+    'basement_details',
+    'basement_included',
+    'total_area_sq_ft',
+    'number_of_floors',
+    'fireplace',
+    'window_coverings',
+    'flooring_common_area',
+    'ceiling_hight',
+    'bedrooms',
+    'bedroom_layout',
+    'closets',
+    'en_suite_bathrooms',
+    'fireplace_bedroom',
+    'den_can_be_used_as_a_bedroom',
+    'bathrooms',
+    'shower_type',
+    'upgraded_bathrooms',
+    'countertops_bathroom',
+    'central_hvac',
+    'heating_ac_unit',
+    'heated_floors',
+    'washer_dryer',
+    'furnace',
+    'hot_water_heater_manufacturer',
+    'washer_and_dryer',
+    'air_conditioning_manufacturer',
+    'countertops',
+    'dishwasher',
+    'upgraded_kitchen',
+    'appliance_finishes',
+    'new_ice_maker',
+    'upgraded_back_splash',
+    'refrigerator_manufacture',
+    'stove_oven',
+    'dishwasher_manufacture',
+    'microwave_manufacture',
+    'cooktop_manufacture',
+    'ventilation_hood_manufacture',
+    'dryer_manufacture',
+    'washer_dryer_in_unit'
+  ]);
+
   // Mapping from Zoho keys to Prisma property model fields
   private static readonly zohoToPrismaMap: Record<string, string> = {
     "Owner": "owner",
-    "Tenant_Prospect_Marketed_Price_Multiplied": "marketed_price_multiplied",
+    "Tenant_Prospect_Marketed_Price_Multiplied": "tenant_prospect_marketed_price_multiplied",
     "Link_to_automatically_book_showing": "link_to_automatically_book_showing",
     "Outdoor_Pool": "outdoor_pool",
     "Unit_Owner_Deal": "unit_owner_deal",
@@ -120,7 +167,7 @@ export class PropertiesService {
     "Refrigerator_Manufacture": "refrigerator_manufacture",
     "Kijiji_Data_Importer": "kijiji_data_importer",
     "Unit_Facing": "unit_facing",
-    "HVAC_Inclusion": "hvac_Inclusion",
+    "HVAC_Inclusion": "hvac_inclusion",
     "Associated_Building": "associated_building",
     "Associated_Portfolios": "associated_portfolios",
     "Bedroom_Layout": "bedroom_layout",
@@ -231,53 +278,77 @@ export class PropertiesService {
     "Wall_Oven_Manufacture": "wall_oven_manufacture",
     "Shower_Type": "shower_type",
     "Craigslist": "craigslist",
-    "Stove_Oven": "stove_oven"
+    "Stove_Oven": "stove_oven",
+    "id": "zcrm_id"
   };
 
-  private static readonly propertyFields = new Set([
-    ...Object.values(PropertiesService.zohoToPrismaMap),
-  ]);
-
   private transformZohoToPrisma(zohoData: CreatePropertyDto) {
-    const modelData: Record<string, any> = {};
+    const propertyData: Record<string, any> = {};
+    const propertyDetailsData: Record<string, any> = {};
     const rawData: Record<string, any> = {};
+    
     // Fields that should be stored as strings in the DB, but may come as booleans from Zoho
-    const booleanToStringFields = new Set(['hvac_Inclusion']);
+    const booleanToStringFields = new Set(['hvac_inclusion']);
 
     for (const [zohoKey, value] of Object.entries(zohoData)) {
       const prismaKey = PropertiesService.zohoToPrismaMap[zohoKey];
-      if (prismaKey && PropertiesService.propertyFields.has(prismaKey)) {
+      
+      if (prismaKey) {
         // Convert boolean to string for specific fields
+        let processedValue = value;
         if (booleanToStringFields.has(prismaKey) && typeof value === 'boolean') {
-          modelData[prismaKey] = value ? 'true' : 'false';
+          processedValue = value ? 'true' : 'false';
         } else if (
           [
             'owner', 'territory', 'associated_building', 'associated_portfolios', 'created_by', 'modified_by'
           ].includes(prismaKey) && value && typeof value === 'object'
         ) {
-          modelData[prismaKey] = value;
+          processedValue = value;
+        }
+
+        // Split data between property and property_details tables
+        if (PropertiesService.propertyFields.has(prismaKey)) {
+          propertyData[prismaKey] = processedValue;
         } else {
-          modelData[prismaKey] = value;
+          propertyDetailsData[prismaKey] = processedValue;
         }
       } else {
         rawData[zohoKey] = value;
       }
     }
 
+    // Add raw_data to property_details
     if (Object.keys(rawData).length > 0) {
-      modelData.raw_data = rawData;
+      propertyDetailsData.raw_data = rawData;
     }
 
-    return modelData;
+    return { propertyData, propertyDetailsData };
   }
 
-  async create(data: CreatePropertyDto) {
+  async create(args: CreatePropertyDto) {
     try {
-      const modelData = this.transformZohoToPrisma(data);
+      const { propertyData, propertyDetailsData } = this.transformZohoToPrisma(args);
+      
+      // Create property first
       const property = await this.prisma.property.create({
-        data: modelData as any,
+        data: propertyData as any,
       });
-      return { statusCode: 201, data: property };
+
+      // Create property_details with reference to property
+      const propertyDetails = await this.prisma.property_details.create({
+        data: {
+          ...propertyDetailsData,
+          property_id: property.id,
+        } as any,
+      });
+
+      return { 
+        statusCode: 201, 
+        data: { 
+          property, 
+          property_details: propertyDetails 
+        } 
+      };
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         throw new BadRequestException(error.message);
