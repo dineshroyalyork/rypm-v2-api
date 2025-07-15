@@ -2,6 +2,9 @@ import { Injectable, InternalServerErrorException, BadRequestException } from '@
 import { PrismaService } from '../../../../shared/prisma/prisma.service';
 import { CreatePropertyDto } from '../dto/create-property.dto';
 import { Prisma } from '@prisma/client';
+import { ALLOWED_PROPERTY_TYPES } from '../constants/property-types';
+import { RentalPreferencesDto } from '../dto/rental-preferences.dto';
+export type PropertyType = (typeof ALLOWED_PROPERTY_TYPES)[number];
 
 @Injectable()
 export class PropertiesService {
@@ -287,4 +290,49 @@ export class PropertiesService {
       }
     }
   }
+
+  async saveOrClearRentalPreferences(
+    tenant_id: string,
+    rentalPreferencesDto: RentalPreferencesDto & { clear?: boolean },
+  ) {
+    if (!tenant_id) {
+      throw new BadRequestException('Unauthorized or invalid token');
+    }
+  
+    // If `clear` flag is true, delete preferences
+    if (rentalPreferencesDto.clear) {
+      await this.prisma.rental_preference.deleteMany({
+        where: { tenant_id },
+      });
+  
+      return {
+        success: true,
+        message: 'Rental preferences cleared successfully',
+      };
+    }
+  
+    // Validate property_type
+    const { price_min, price_max, bedrooms, bathrooms, parking, property_type, move_in_date } = rentalPreferencesDto;
+  
+    if (
+      property_type &&
+      !ALLOWED_PROPERTY_TYPES.includes(property_type as PropertyType)
+    ) {
+      throw new BadRequestException(`Invalid property_type: ${property_type}`);
+    }
+  
+    // Upsert rental preferences
+    const upserted = await this.prisma.rental_preference.upsert({
+      where: { tenant_id },
+      update: { price_min, price_max, bedrooms, bathrooms, parking, property_type, move_in_date },
+      create: { tenant_id, price_min, price_max, bedrooms, bathrooms, parking, property_type, move_in_date },
+    });
+  
+    return {
+      success: true,
+      message: 'Rental preferences saved successfully',
+      data: upserted,
+    };
+  }
+  
 } 

@@ -13,20 +13,19 @@ export class WishlistService {
 
   async createWishlist(tenant_id: string, dto: CreateWishlistDto) {
     const existing = await this.prisma.wishlist.findFirst({
-      where: {
-        tenant_id,
-        name: dto.name,
-      },
+      where: { tenant_id, name: dto.name },
     });
     if (existing) {
-      throw new HttpException('You cannot create with the same name', 500);
+      throw new HttpException('You cannot create a wishlist with the same name', 400);
     }
-    return this.prisma.wishlist.create({
-      data: {
-        name: dto.name,
-        tenant_id,
-      },
+    const wishlist = await this.prisma.wishlist.create({
+      data: { name: dto.name, tenant_id },
     });
+    return {
+      success: true,
+      message: 'Wishlist created successfully',
+      data: wishlist,
+    };
   }
 
   async getTenantWishlists(tenant_id: string) {
@@ -38,11 +37,16 @@ export class WishlistService {
         },
       },
     });
-    return wishlists.map((w) => ({
-      id: w.id,
-      name: w.name,
-      count: w._count.properties,
-    }));
+
+    return {
+      success: true,
+      message: 'Wishlist list fetched successfully',
+      data: wishlists.map((w) => ({
+        id: w.id,
+        name: w.name,
+        count: w._count.properties,
+      })),
+    };
   }
 
   async addPropertyToWishlist(wishlist_id: string, dto: AddPropertyDto) {
@@ -61,7 +65,10 @@ export class WishlistService {
         },
       });
     }
-    return { success: true };
+    return {
+      success: true,
+      message: 'Properties added to wishlist successfully',
+    };
   }
 
   async removePropertyFromWishlist(wishlist_id: string, property_id: string) {
@@ -73,36 +80,69 @@ export class WishlistService {
         },
       },
     });
-    return { success: true };
+    return {
+      success: true,
+      message: 'Property removed from wishlist successfully',
+    };
   }
 
   async removePropertiesFromWishlist(wishlist_id: string, property_ids: string[]) {
     const wishlist = await this.prisma.wishlist.findUnique({ where: { id: wishlist_id } });
-    if (!wishlist) throw new Error('Wishlist not found');
+    if (!wishlist) throw new HttpException('Wishlist not found', 404);
+
     await this.prisma.wishlist_property.deleteMany({
       where: {
         wishlist_id,
         property_id: { in: property_ids },
       },
     });
-    return { success: true };
+
+    return {
+      success: true,
+      message: 'Selected properties removed from wishlist successfully',
+    };
   }
 
   async renameWishlist(wishlist_id: string, newName: string) {
-    return this.prisma.wishlist.update({
+    const wishlist = await this.prisma.wishlist.update({
       where: { id: wishlist_id },
       data: { name: newName },
     });
+
+    return {
+      success: true,
+      message: 'Wishlist renamed successfully',
+      data: wishlist,
+    };
   }
 
-  async deleteWishlist(wishlist_id: string) {
+  async deleteMultipleWishlists(wishlist_ids: string[]) {
+    if (!Array.isArray(wishlist_ids) || wishlist_ids.length === 0) {
+      return {
+        success: false,
+        message: 'No wishlist IDs provided',
+      };
+    }
+  
     await this.prisma.wishlist_property.deleteMany({
-      where: { wishlist_id },
+      where: {
+        wishlist_id: { in: wishlist_ids },
+      },
     });
-    return this.prisma.wishlist.delete({
-      where: { id: wishlist_id },
+  
+    await this.prisma.wishlist.deleteMany({
+      where: {
+        id: { in: wishlist_ids },
+      },
     });
+  
+    return {
+      success: true,
+      message: 'Wishlists deleted successfully',
+      deleted_count: wishlist_ids.length,
+    };
   }
+  
 
   async moveProperty(dto: MovePropertyDto) {
     for (const property_id of dto.property_ids) {
@@ -129,11 +169,15 @@ export class WishlistService {
         },
       });
     }
-    return { success: true };
+
+    return {
+      success: true,
+      message: 'Properties moved to new wishlist successfully',
+    };
   }
 
   async getWishlistById(wishlist_id: string) {
-    return this.prisma.wishlist.findUnique({
+    const wishlist = await this.prisma.wishlist.findUnique({
       where: { id: wishlist_id },
       select: {
         id: true,
@@ -142,8 +186,13 @@ export class WishlistService {
         properties: true,
         created_at: true,
         updated_at: true,
-        // add other fields as needed
       },
     });
+
+    return {
+      success: true,
+      message: 'Wishlist details fetched successfully',
+      data: wishlist,
+    };
   }
 }

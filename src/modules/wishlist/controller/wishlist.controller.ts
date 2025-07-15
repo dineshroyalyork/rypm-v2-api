@@ -70,9 +70,9 @@ export class WishlistController {
     return this.wishlistService.removePropertiesFromWishlist(wishlist_id, property_ids);
   }
 
-  @Delete(':id')
-  delete(@Param('id') id: string) {
-    return this.wishlistService.deleteWishlist(id);
+  @Delete()
+  deleteMultipleWishlists(@Body('wishlist_ids') wishlist_ids: string[]) {
+    return this.wishlistService.deleteMultipleWishlists(wishlist_ids);
   }
 
   @Post('move')

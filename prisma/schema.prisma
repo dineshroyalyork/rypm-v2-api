@@ -283,6 +283,22 @@ model property {
 }
 
 
+model rental_preference {
+  id             String   @id @default(uuid())
+  tenant_id      String   @unique
+  price_min      Int
+  price_max      Int
+  bedrooms       String
+  bathrooms      String
+  parking        String
+  property_type  String?
+  move_in_date   String?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  tenant         tenants  @relation(fields: [tenant_id], references: [id])
+}
+
 model tenants {
     id                    String          @id @default(uuid())
   first_name            String?         // optional
@@ -302,6 +318,7 @@ model tenants {
   device_tokens         device_tokens[]
   login_methods         login_methods[]
   wishlists              wishlist[] 
+  rental_preference    rental_preference? 
 }
 
 

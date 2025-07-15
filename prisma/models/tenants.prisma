@@ -17,4 +17,5 @@ model tenants {
   device_tokens         device_tokens[]
   login_methods         login_methods[]
   wishlists              wishlist[] 
+ ental_preference     rental_preference?
 }
