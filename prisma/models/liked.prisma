@@ -1,0 +1,5 @@
+model Liked {
+  id          String   @id @default(uuid())
+  tenant_id   String   @unique
+  property_ids String[]
+}

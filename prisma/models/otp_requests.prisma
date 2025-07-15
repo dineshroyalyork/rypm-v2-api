@@ -1,0 +1,12 @@
+model otp_requests {
+  id           String     @id @default(uuid())
+  identifier   String     // phone or email
+  otp          String
+  expires_at   DateTime
+  verified     Boolean    @default(false)
+  created_at   DateTime   @default(now())
+
+  // relation
+  tenant_id    String?
+  tenant       tenants?   @relation(fields: [tenant_id], references: [id])
+} 

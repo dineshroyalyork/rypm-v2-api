@@ -1,0 +1,9 @@
+model wishlist_property {
+  wishlist_id           String
+  property_id           String
+
+  wishlist              wishlist @relation(fields: [wishlist_id], references: [id])
+  property              property @relation(fields: [property_id], references: [id])
+
+  @@id([wishlist_id, property_id])
+}

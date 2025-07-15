@@ -1,0 +1,10 @@
+model login_methods {
+  id           String     @id @default(uuid())
+  provider     String     // "google" | "apple" | "facebook" | "magic-link"
+  provider_id  String     // unique ID from provider
+  created_at   DateTime   @default(now())
+
+  // relation
+  tenant_id    String
+  tenant       tenants     @relation(fields: [tenant_id], references: [id])
+} 

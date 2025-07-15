@@ -12,61 +12,63 @@ import {
   } from '@nestjs/common';
   import { Request } from 'express';
   import { AuthGuard } from '@/shared/guards/auth.guard';
-  import { WishlistService } from './wishlist.service';
+  import { WishlistService } from '../service/wishlist.service';
   
   import {
     CreateWishlistDto,
     createWishlistSchema,
-  } from './dto/create-wishlist.dto';
+  } from '../dto/create-wishlist.dto';
   import {
     AddPropertyDto,
     addPropertySchema,
-  } from './dto/add-property.dto';
+  } from '../dto/add-property.dto';
   import {
     MovePropertyDto,
     movePropertySchema,
-  } from './dto/move-property.dto';
+  } from '../dto/move-property.dto';
   import { ZodValidationPipe } from 'nestjs-zod';
   
   @UseGuards(AuthGuard)
-  @Controller('wishlists')
+  @Controller({ path: 'wishlist', version: '2' })
   export class WishlistController {
     constructor(private wishlistService: WishlistService) {}
   
     @Post()
     @UsePipes(new ZodValidationPipe(createWishlistSchema))
     create(@Req() req: Request, @Body() dto: CreateWishlistDto) {
-      const tenantId = (req as any).user?.sub || (req as any).user?.id;
-      return this.wishlistService.createWishlist(tenantId, dto);
+      const tenant_id = (req as any).user?.sub || (req as any).user?.id;
+      return this.wishlistService.createWishlist(tenant_id, dto);
     }
   
     @Get()
-    findAll(@Req() req) {
-      const tenantId = (req as any).user?.sub || (req as any).user?.id;
-      return this.wishlistService.getTenantWishlists(tenantId);
+    findAll(@Req() req: Request) {
+      const tenant_id = (req as any).user?.sub || (req as any).user?.id;
+      return this.wishlistService.getTenantWishlists(tenant_id);
+    }
+  
+    @Get(':id')
+    async getWishlistById(@Param('id') wishlist_id: string) {
+      return this.wishlistService.getWishlistById(wishlist_id);
     }
   
     @Post(':id/items')
-    @UsePipes(new ZodValidationPipe(addPropertySchema))
+    // @UsePipes(new ZodValidationPipe(addPropertySchema))
     addProperty(
-      @Param('id') wishlistId: string,
+      @Param('id') wishlist_id: string,
       @Body() dto: AddPropertyDto,
     ) {
-      return this.wishlistService.addPropertyToWishlist(wishlistId, dto);
+      console.log('Received DTO:', dto);
+      return this.wishlistService.addPropertyToWishlist(wishlist_id, dto);
     }
   
-    @Delete(':id/items/:propertyId')
-    removeProperty(
-      @Param('id') wishlistId: string,
-      @Param('propertyId') propertyId: string,
+    @Delete(':id/items')
+    removeProperties(
+      @Param('id') wishlist_id: string,
+      @Body('property_ids') property_ids: string[],
     ) {
-      return this.wishlistService.removePropertyFromWishlist(wishlistId, propertyId);
+      return this.wishlistService.removePropertiesFromWishlist(wishlist_id, property_ids);
     }
-  
-    @Put(':id')
-    rename(@Param('id') id: string, @Body('name') name: string) {
-      return this.wishlistService.renameWishlist(id, name);
-    }
+
   
     @Delete(':id')
     delete(@Param('id') id: string) {

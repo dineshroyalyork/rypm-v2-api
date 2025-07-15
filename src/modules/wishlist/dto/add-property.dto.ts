@@ -1,8 +1,7 @@
-// src/modules/wishlist/dto/add-property.dto.ts
 import { z } from 'zod';
 
 export const addPropertySchema = z.object({
-  propertyId: z.string().uuid('Invalid propertyId'),
+  property_ids: z.array(z.string().uuid('Invalid property_id')),
 });
 
 export type AddPropertyDto = z.infer<typeof addPropertySchema>;
