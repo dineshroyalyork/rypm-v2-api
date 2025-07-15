@@ -208,6 +208,7 @@ model property {
     basement_included                              Boolean?
     total_area_sq_ft                               Int?
     number_of_floors                               Int?
+    name                                           String?
     
     // Common Area Features
     fireplace                                      Boolean?
@@ -334,7 +335,6 @@ model property_details {
     corner_unit                                    Boolean?
     email                                          String?
     closets                                        String?
-    name                                           String?
     last_activity_time                             DateTime?
     website_verified                               String?
     unsubscribed_mode                              String?
