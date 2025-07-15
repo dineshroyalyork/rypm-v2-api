@@ -1,10 +1,7 @@
-import {
-  Injectable,
-  HttpException,
-} from '@nestjs/common';
 import { PrismaService } from '@/shared/prisma/prisma.service';
-import { CreateWishlistDto } from '../dto/create-wishlist.dto';
+import { HttpException, Injectable } from '@nestjs/common';
 import { AddPropertyDto } from '../dto/add-property.dto';
+import { CreateWishlistDto } from '../dto/create-wishlist.dto';
 import { MovePropertyDto } from '../dto/move-property.dto';
 
 @Injectable()
@@ -16,7 +13,10 @@ export class WishlistService {
       where: { tenant_id, name: dto.name },
     });
     if (existing) {
-      throw new HttpException('You cannot create a wishlist with the same name', 400);
+      throw new HttpException(
+        'You cannot create a wishlist with the same name',
+        400,
+      );
     }
     const wishlist = await this.prisma.wishlist.create({
       data: { name: dto.name, tenant_id },
@@ -86,8 +86,13 @@ export class WishlistService {
     };
   }
 
-  async removePropertiesFromWishlist(wishlist_id: string, property_ids: string[]) {
-    const wishlist = await this.prisma.wishlist.findUnique({ where: { id: wishlist_id } });
+  async removePropertiesFromWishlist(
+    wishlist_id: string,
+    property_ids: string[],
+  ) {
+    const wishlist = await this.prisma.wishlist.findUnique({
+      where: { id: wishlist_id },
+    });
     if (!wishlist) throw new HttpException('Wishlist not found', 404);
 
     await this.prisma.wishlist_property.deleteMany({
@@ -123,26 +128,25 @@ export class WishlistService {
         message: 'No wishlist IDs provided',
       };
     }
-  
+
     await this.prisma.wishlist_property.deleteMany({
       where: {
         wishlist_id: { in: wishlist_ids },
       },
     });
-  
+
     await this.prisma.wishlist.deleteMany({
       where: {
         id: { in: wishlist_ids },
       },
     });
-  
+
     return {
       success: true,
       message: 'Wishlists deleted successfully',
       deleted_count: wishlist_ids.length,
     };
   }
-  
 
   async moveProperty(dto: MovePropertyDto) {
     for (const property_id of dto.property_ids) {
@@ -202,7 +206,7 @@ export class WishlistService {
             property: {
               select: {
                 id: true,
-                name: true,
+                // name: true,
               },
             },
           },

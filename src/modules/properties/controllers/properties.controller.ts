@@ -1,11 +1,8 @@
-import { Body, Controller, Post, UseGuards, Req, Delete } from '@nestjs/common';
-import { PropertiesService } from '../services/properties.service';
-import {
-  CreatePropertyDto,
-  createPropertySchema,
-} from '../dto/create-property.dto';
-import { RentalPreferencesDto } from '../dto/rental-preferences.dto';
 import { AuthGuard } from '@/shared/guards/auth.guard';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { CreatePropertyDto } from '../dto/create-property.dto';
+import { RentalPreferencesDto } from '../dto/rental-preferences.dto';
+import { PropertiesService } from '../services/properties.service';
 
 @Controller({ path: 'properties', version: '2' })
 export class PropertiesController {
