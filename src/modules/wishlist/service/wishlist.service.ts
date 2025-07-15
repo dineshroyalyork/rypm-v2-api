@@ -176,23 +176,53 @@ export class WishlistService {
     };
   }
 
-  async getWishlistById(wishlist_id: string) {
+  async getWishlistById(wishlist_id: string, page_number = 1, page_size = 10) {
+    // Calculate skip and take for pagination
+    const skip = (page_number - 1) * page_size;
+    const take = page_size;
+
+    // Get total count of properties in the wishlist
+    const totalCount = await this.prisma.wishlist_property.count({
+      where: { wishlist_id },
+    });
+
+    // Fetch wishlist and paginated properties
     const wishlist = await this.prisma.wishlist.findUnique({
       where: { id: wishlist_id },
       select: {
         id: true,
         name: true,
         tenant_id: true,
-        properties: true,
         created_at: true,
         updated_at: true,
+        properties: {
+          skip,
+          take,
+          select: {
+            property: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
       },
     });
+
+    // Flatten property info for easier consumption
+    const properties = wishlist?.properties?.map((wp) => wp.property) || [];
 
     return {
       success: true,
       message: 'Wishlist details fetched successfully',
-      data: wishlist,
+      data: {
+        ...wishlist,
+        properties,
+        total_count: totalCount,
+        page_number,
+        page_size,
+      },
     };
   }
 }

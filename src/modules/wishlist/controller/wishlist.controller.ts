@@ -49,8 +49,14 @@ export class WishlistController {
   }
 
   @Get(':id')
-  async getWishlistById(@Param('id') wishlist_id: string) {
-    return this.wishlistService.getWishlistById(wishlist_id);
+  async getWishlistById(
+    @Param('id') wishlist_id: string,
+    @Req() req: Request
+  ) {
+    // Parse query params for pagination
+    const page_number = req.query.page_number ? parseInt(req.query.page_number as string, 10) : 1;
+    const page_size = req.query.page_size ? parseInt(req.query.page_size as string, 10) : 10;
+    return this.wishlistService.getWishlistById(wishlist_id, page_number, page_size);
   }
 
   @Post(':id/items')
