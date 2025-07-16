@@ -1,10 +1,7 @@
-import {
-  BadRequestException,
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../shared/prisma/prisma.service';
+import { parseCsvStringToJson } from '../../../../shared/utils/csv';
 import { CreatePropertyDto } from '../dto/create-property.dto';
 
 @Injectable()
@@ -57,13 +54,17 @@ export class PropertiesService {
     'dryer_manufacture',
     'washer_dryer_in_unit',
     'name',
+    'latitude',
+    'longitude',
+    'city',
+    'associated_building',
+    'address',
   ]);
 
   // Mapping from Zoho keys to Prisma property model fields
   private static readonly zohoToPrismaMap: Record<string, string> = {
     Owner: 'owner',
-    Tenant_Prospect_Marketed_Price_Multiplied:
-      'tenant_prospect_marketed_price_multiplied',
+    Tenant_Prospect_Marketed_Price_Multiplied: 'tenant_prospect_marketed_price_multiplied',
     Link_to_automatically_book_showing: 'link_to_automatically_book_showing',
     Outdoor_Pool: 'outdoor_pool',
     Unit_Owner_Deal: 'unit_owner_deal',
@@ -92,8 +93,7 @@ export class PropertiesService {
     Setup_Fee_Property_Management: 'setup_fee_property_management',
     TP_Response: 'tp_response',
     LinkedIn: 'linkedin',
-    Ad_Description_With_Parking_and_Locker:
-      'ad_description_with_parking_and_locker',
+    Ad_Description_With_Parking_and_Locker: 'ad_description_with_parking_and_locker',
     Google_My_Business: 'google_my_business',
     NOE_Vacancy_Date: 'noe_vacancy_date',
     Create_task_temporary: 'create_task_temporary',
@@ -105,8 +105,7 @@ export class PropertiesService {
     Task_temporary_2: 'task_temporary_2',
     Fully_Marketed: 'fully_marketed',
     Unit_URL: 'unit_url',
-    Posting_Title_With_Parking_and_Locker:
-      'posting_title_with_parking_and_locker',
+    Posting_Title_With_Parking_and_Locker: 'posting_title_with_parking_and_locker',
     Storage_Details: 'storage_details',
     Publish_to_RYPM_Website: 'publish_to_rypm_website',
     Communication: 'communication',
@@ -121,10 +120,8 @@ export class PropertiesService {
     Insurance_Policy_Number: 'insurance_policy_number',
     Upgraded_Bathrooms: 'upgraded_bathrooms',
     AC_Inclusion: 'ac_inclusion',
-    Important_Information_for_booking_showing:
-      'important_information_for_booking_showing',
-    Property_is_Leased_Lost_Legal_Department_Revie:
-      'property_is_leased_lost_legal_department_revie',
+    Important_Information_for_booking_showing: 'important_information_for_booking_showing',
+    Property_is_Leased_Lost_Legal_Department_Revie: 'property_is_leased_lost_legal_department_revie',
     Management_Deal_created: 'management_deal_created',
     Unit_Category: 'unit_category',
     Appliances: 'appliances',
@@ -215,8 +212,7 @@ export class PropertiesService {
     Dryer_Manufacture: 'dryer_manufacture',
     Bedrooms: 'bedrooms',
     Created_By: 'created_by',
-    Market_Price_With_Parking_and_Locker:
-      'market_price_with_parking_and_locker',
+    Market_Price_With_Parking_and_Locker: 'market_price_with_parking_and_locker',
     Fireplace: 'fireplace',
     Intersection: 'intersection',
     Balcony_Type: 'balcony_type',
@@ -244,8 +240,7 @@ export class PropertiesService {
     Party_Room: 'party_room',
     Posting_Title: 'posting_title',
     Wine_Cooler: 'wine_cooler',
-    Eavestrough_and_Window_Cleaning_Estimate:
-      'eavestrough_and_window_cleaning_estimate',
+    Eavestrough_and_Window_Cleaning_Estimate: 'eavestrough_and_window_cleaning_estimate',
     Notice_of_Entry_Required: 'notice_of_entry_required',
     Water_Provider: 'water_provider',
     HVAC: 'hvac',
@@ -292,6 +287,7 @@ export class PropertiesService {
     Craigslist: 'craigslist',
     Stove_Oven: 'stove_oven',
     id: 'zcrm_id',
+    Id: 'zcrm_id', // for csv import
   };
 
   private transformZohoToPrisma(zohoData: CreatePropertyDto) {
@@ -308,20 +304,21 @@ export class PropertiesService {
       if (prismaKey) {
         // Convert boolean to string for specific fields
         let processedValue = value;
-        if (
-          booleanToStringFields.has(prismaKey) &&
-          typeof value === 'boolean'
-        ) {
+        if (booleanToStringFields.has(prismaKey) && typeof value === 'boolean') {
           processedValue = value ? 'true' : 'false';
         } else if (
-          [
-            'owner',
-            'territory',
-            'associated_building',
-            'associated_portfolios',
-            'created_by',
-            'modified_by',
-          ].includes(prismaKey) &&
+          ['owner', 'territory', 'associated_building', 'associated_portfolios', 'created_by', 'modified_by'].includes(prismaKey) &&
+          value &&
+          typeof value === 'string'
+        ) {
+          // Convert string ID to object format for CSV data
+          processedValue = {
+            id: value,
+            name: '',
+            email: '',
+          };
+        } else if (
+          ['owner', 'territory', 'associated_building', 'associated_portfolios', 'created_by', 'modified_by'].includes(prismaKey) &&
           value &&
           typeof value === 'object'
         ) {
@@ -347,13 +344,101 @@ export class PropertiesService {
     return { propertyData, propertyDetailsData };
   }
 
+  /**
+   * Transform CSV data with proper type conversions for bulk import
+   * This method handles CSV-specific data type conversions without affecting the existing create API
+   */
+  private transformCsvData(csvRecord: Record<string, any>) {
+    // First, map CSV field names to Prisma field names using the existing mapping
+    const mappedRecord: Record<string, any> = {};
+
+    for (const [csvField, value] of Object.entries(csvRecord)) {
+      const prismaField = PropertiesService.zohoToPrismaMap[csvField];
+      if (prismaField) {
+        mappedRecord[prismaField] = value;
+      } else {
+        // Keep original field name if no mapping exists
+        mappedRecord[csvField] = value;
+      }
+    }
+
+    const transformedRecord = { ...mappedRecord };
+
+    // Convert string booleans to actual booleans - include all boolean fields from CSV
+    const booleanFields = [
+      'fireplace',
+      'fireplace_bedroom',
+      'den_can_be_used_as_a_bedroom',
+      'upgraded_bathrooms',
+      'heated_floors',
+      'dishwasher',
+      'upgraded_kitchen',
+      'washer_dryer_in_unit',
+      'upgraded_back_splash',
+      'new_ice_maker',
+    ];
+
+    booleanFields.forEach(field => {
+      if (transformedRecord[field] !== undefined && transformedRecord[field] !== null) {
+        const value = String(transformedRecord[field]).toLowerCase().trim();
+        if (value === 'true' || value === 'yes' || value === '1') {
+          transformedRecord[field] = true;
+        } else if (value === 'false' || value === 'no' || value === '0' || value === 'no den') {
+          transformedRecord[field] = false;
+        } else if (value === 'n/a - basement does not exist' || value === 'n/a' || value === '') {
+          transformedRecord[field] = null;
+        } else {
+          // For any other string value, convert to null to avoid type errors
+          transformedRecord[field] = null;
+        }
+      }
+    });
+
+    // Convert numeric strings to numbers - only for fields that are actually Int in the schema
+    const numericFields = ['total_area_sq_ft', 'number_of_floors'];
+
+    numericFields.forEach(field => {
+      if (transformedRecord[field] !== undefined && transformedRecord[field] !== null) {
+        const value = String(transformedRecord[field]).trim();
+        if (value && value !== 'n/a' && value !== 'N/A' && !isNaN(Number(value))) {
+          transformedRecord[field] = Number(value);
+        } else if (value === 'n/a' || value === 'N/A' || value === '') {
+          transformedRecord[field] = null;
+        }
+      }
+    });
+
+    // Convert float fields to numbers
+    const floatFields = ['exchange_rate'];
+
+    floatFields.forEach(field => {
+      if (transformedRecord[field] !== undefined && transformedRecord[field] !== null) {
+        const value = String(transformedRecord[field]).trim();
+        if (value && value !== 'n/a' && value !== 'N/A' && !isNaN(Number(value))) {
+          transformedRecord[field] = Number(value);
+        } else if (value === 'n/a' || value === 'N/A' || value === '') {
+          transformedRecord[field] = null;
+        }
+      }
+    });
+
+    // Handle special cases for basement_details
+    if (transformedRecord.basement_details) {
+      const value = String(transformedRecord.basement_details).trim();
+      if (value === 'N/A - Basement does not exist' || value === 'n/a - basement does not exist') {
+        transformedRecord.basement_details = null;
+      }
+    }
+
+    return transformedRecord;
+  }
+
   async create(args: CreatePropertyDto) {
     try {
-      const { propertyData, propertyDetailsData } =
-        this.transformZohoToPrisma(args);
+      const { propertyData, propertyDetailsData } = this.transformZohoToPrisma(args);
 
       // Create property first
-      const property = await this.prisma.property.create({
+      const property = await this.prisma.properties.create({
         data: propertyData as any,
       });
 
@@ -379,6 +464,755 @@ export class PropertiesService {
         console.error('Internal server error:', error);
         throw new InternalServerErrorException('Internal server error');
       }
+    }
+  }
+
+  async importFromCsv(csvData: string) {
+    try {
+      const records = await parseCsvStringToJson(csvData);
+      if (!records || records.length === 0) {
+        throw new BadRequestException('No valid records found in CSV');
+      }
+
+      console.log(`Processing ${records.length} records from CSV`);
+      console.log('Sample record:', records[0]);
+
+      const results = {
+        total: records.length,
+        successful: 0,
+        failed: 0,
+        errors: [] as string[],
+        startTime: new Date(),
+        endTime: null as Date | null,
+      };
+
+      try {
+        // Transform CSV data with proper type conversions first
+        const transformedCsvRecords = records.map(record => this.transformCsvData(record));
+
+        // Split data between property and property_details tables directly
+        const propertyDataArray: Record<string, any>[] = [];
+        const propertyDetailsArray: Record<string, any>[] = [];
+
+        transformedCsvRecords.forEach((record, index) => {
+          const propertyData: Record<string, any> = {};
+          const propertyDetailsData: Record<string, any> = {};
+          const rawData: Record<string, any> = {};
+
+          for (const [fieldName, value] of Object.entries(record)) {
+            // Skip created_at and updated_at as they'll be added later
+            if (fieldName === 'created_at' || fieldName === 'updated_at') {
+              continue;
+            }
+
+            // Handle associated_building field - convert to JSON format
+            if (fieldName === 'associated_building' && value) {
+              propertyData[fieldName] = {
+                id: value,
+                name: '',
+                email: '',
+              };
+              continue;
+            }
+
+            // Handle JSON fields - convert to JSON format
+            const jsonFields = ['owner', 'created_by', 'modified_by', 'territory', 'associated_portfolios'];
+            if (jsonFields.includes(fieldName) && value) {
+              propertyDetailsData[fieldName] = {
+                id: value,
+                name: '',
+                email: '',
+              };
+              continue;
+            }
+
+            // Check if field belongs to property table
+            if (PropertiesService.propertyFields.has(fieldName)) {
+              propertyData[fieldName] = value;
+            } else {
+              // Check if field is mapped in zohoToPrismaMap (goes to property_details)
+              const prismaField = PropertiesService.zohoToPrismaMap[fieldName];
+              if (prismaField && !PropertiesService.propertyFields.has(prismaField)) {
+                propertyDetailsData[prismaField] = value;
+              } else {
+                // Check if field directly matches property_details schema fields
+                const propertyDetailsSchemaFields = [
+                  'owner',
+                  'tenant_prospect_marketed_price_multiplied',
+                  'link_to_automatically_book_showing',
+                  'outdoor_pool',
+                  'unit_owner_deal',
+                  'huge_private_terrace',
+                  'heat_inclusion',
+                  'carbon_monoxide_detector',
+                  'client_support_specialist',
+                  'internet_inclusion',
+                  'currency',
+                  'daily_rent',
+                  'postal_code',
+                  'synced_web_tp',
+                  'point2homes',
+                  'create_legal_file',
+                  'unit_type',
+                  'tenant_cons_email_last_sent',
+                  'noe_contact',
+                  'area_search_result',
+                  'management_end_date',
+                  'locker_level_and_number',
+                  'setup_fee_property_management',
+                  'tp_response',
+                  'linkedin',
+                  'ad_description_with_parking_and_locker',
+                  'google_my_business',
+                  'noe_vacancy_date',
+                  'create_task_temporary',
+                  'management_start_date',
+                  'email_description',
+                  'task_temporary_2',
+                  'fully_marketed',
+                  'unit_url',
+                  'posting_title_with_parking_and_locker',
+                  'storage_details',
+                  'publish_to_rypm_website',
+                  'communication',
+                  'private_garage',
+                  'tons_of_natural_light',
+                  'smoke_alarm_1',
+                  'central_vaccum',
+                  'insurance_policy_number',
+                  'ac_inclusion',
+                  'important_information_for_booking_showing',
+                  'property_is_leased_lost_legal_department_revie',
+                  'management_deal_created',
+                  'unit_category',
+                  'appliances',
+                  'flooring_in_bedrooms',
+                  'creator_record_id',
+                  'is_the_backyard_fenced',
+                  'corner_unit',
+                  'email',
+                  'closets',
+                  'last_activity_time',
+                  'website_verified',
+                  'unsubscribed_mode',
+                  'exchange_rate',
+                  'backyard',
+                  'gas_provider',
+                  'furnace_filter',
+                  'max_occupants',
+                  'flooring_common_area',
+                  'when_was_the_property_leased',
+                  'territory',
+                  'youtube_video',
+                  'scheduled_photos_and_video',
+                  'update_portfolio',
+                  'flushing_of_drain_work_order',
+                  'walk_in_closets',
+                  'washer_manufacture',
+                  'active_1_10_days',
+                  'fire_extinguisher1',
+                  'instagram',
+                  'insurance_home_owner',
+                  'phone_inclusion',
+                  'parking_details',
+                  'closing_date',
+                  'noe_date_and_time_from_owner_portal',
+                  'modified_by',
+                  'setup_fee',
+                  'date_under_management',
+                  'neighbourhood',
+                  'new_ice_maker',
+                  'social_media_description',
+                  'modified_time',
+                  'meta_description',
+                  'hot_water_tank_provider',
+                  'link_to_key_release_form',
+                  'view',
+                  'management_fees',
+                  'refrigerator_manufacture',
+                  'kijiji_data_importer',
+                  'unit_facing',
+                  'hvac_inclusion',
+                  'associated_portfolios',
+                  'incentives',
+                  'number_of_parking_spaces',
+                  'street_number',
+                  'location_of_balcony',
+                  'mail_box_number',
+                  'garage_door_closer',
+                  'lift',
+                  'tenant_contact',
+                  'create_project_manually',
+                  'cable_inclusion',
+                  'farhad_work_orders',
+                  'bank_account',
+                  'number_of_lockers',
+                  'window_coverings_common_area',
+                  'active_lease',
+                  'aether_lease_check',
+                  'electricity_inclusion',
+                  'created_time',
+                  'project_id',
+                  'address_line_2',
+                  'high_floor',
+                  'liv_rent',
+                  'walk_out_to_garage',
+                  'youtube',
+                  'created_by',
+                  'market_price_with_parking_and_locker',
+                  'intersection',
+                  'balcony_type',
+                  'save_attachments',
+                  'to_be_done_by',
+                  'washer_and_dryer',
+                  'guest_parking',
+                  'added_to_tp',
+                  'published_rental',
+                  'how_are_utilities_split',
+                  'penthouse',
+                  'tennis_court',
+                  'hydro_provider',
+                  'last_month_rent_deposit',
+                  'marketed_price',
+                  'rypm_website',
+                  'property_condition',
+                  'microwave_manufacture',
+                  'locked_s',
+                  'rypm_website_listing',
+                  'tag',
+                  'termination_date',
+                  'party_room',
+                  'posting_title',
+                  'wine_cooler',
+                  'eavestrough_and_window_cleaning_estimate',
+                  'notice_of_entry_required',
+                  'water_provider',
+                  'hvac',
+                  'basement_details',
+                  'kijiji',
+                  'retainer_balance',
+                  'facebook',
+                  'ventilation_hood_manufacture',
+                  'date_unpublished',
+                  'duct_cleaninga',
+                  'media',
+                  'portal_id',
+                  'smoke_alarm',
+                  'province',
+                  'ad_description_long',
+                  'basement_entrance',
+                  'fire_extinguisher',
+                  'website_badge',
+                  'utility_notes',
+                  'location_description',
+                  'lawn_and_snow_care',
+                  'personal_thermostat',
+                  'furnished',
+                  'rented_out_for',
+                  'on_site_laundry',
+                  'carbon_monoxide_detectors',
+                  'tenant_moving_in',
+                  'listing_overview_paragraph',
+                  'unit_contact_owner',
+                  'leasing_administrator',
+                  'temporary_create_inspection',
+                  'unsubscribed_time',
+                  'ad_description',
+                  'duct_cleaning_work_order',
+                  'suggest_prospects_and_deals',
+                  'number_of_floors',
+                  'earliest_move_in_date',
+                  'first_and_last_name',
+                  'wall_oven_manufacture',
+                  'craigslist',
+                  'parking_level_num',
+                  'year_built',
+                ];
+
+                if (propertyDetailsSchemaFields.includes(fieldName)) {
+                  propertyDetailsData[fieldName] = value;
+                } else {
+                  // If it's not a known field, put it in raw_data
+                  rawData[fieldName] = value;
+                }
+              }
+            }
+          }
+
+          // Convert ALL boolean fields in property_details - comprehensive list from Prisma schema
+          const allPropertyDetailsBooleanFields = [
+            'outdoor_pool',
+            'unit_owner_deal',
+            'huge_private_terrace',
+            'heat_inclusion',
+            'carbon_monoxide_detector',
+            'internet_inclusion',
+            'synced_web_tp',
+            'create_legal_file',
+            'create_task_temporary',
+            'task_temporary_2',
+            'fully_marketed',
+            'private_garage',
+            'tons_of_natural_light',
+            'central_vaccum',
+            'ac_inclusion',
+            'management_deal_created',
+            'corner_unit',
+            'update_portfolio',
+            'flushing_of_drain_work_order',
+            'walk_in_closets',
+            'active_1_10_days',
+            'phone_inclusion',
+            'aether_lease_check',
+            'electricity_inclusion',
+            'high_floor',
+            'liv_rent',
+            'walk_out_to_garage',
+            'save_attachments',
+            'published_rental',
+            'penthouse',
+            'tennis_court',
+            'locked_s',
+            'party_room',
+            'kijiji',
+            'on_site_laundry',
+            'carbon_monoxide_detectors',
+            'temporary_create_inspection',
+            'duct_cleaning_work_order',
+            'kijiji_data_importer',
+            'garage_door_closer',
+            'lift',
+            'create_project_manually',
+            'cable_inclusion',
+            'farhad_work_orders',
+            'active_lease',
+            'personal_thermostat',
+            'tenant_moving_in',
+            'suggest_prospects_and_deals',
+            'duct_cleaninga',
+            'new_ice_maker',
+          ];
+
+          allPropertyDetailsBooleanFields.forEach(field => {
+            if (propertyDetailsData[field] !== undefined && propertyDetailsData[field] !== null) {
+              const value = String(propertyDetailsData[field]).toLowerCase().trim();
+              if (value === 'true' || value === 'yes' || value === '1') {
+                propertyDetailsData[field] = true;
+              } else if (value === 'false' || value === 'no' || value === '0') {
+                propertyDetailsData[field] = false;
+              } else if (value === 'n/a' || value === 'N/A' || value === '') {
+                propertyDetailsData[field] = null;
+              } else {
+                // For any other string value, convert to null to avoid type errors
+                propertyDetailsData[field] = null;
+              }
+            }
+          });
+
+          // Add raw_data to property_details if there are any unknown fields
+          if (Object.keys(rawData).length > 0) {
+            propertyDetailsData.raw_data = rawData;
+          }
+
+          // Debug first few records
+          if (index < 3) {
+            console.log(`📝 Record ${index + 1} split:`, {
+              propertyFields: Object.keys(propertyData),
+              propertyDetailsFields: Object.keys(propertyDetailsData),
+              rawDataFields: Object.keys(rawData),
+              samplePropertyData: propertyData,
+              samplePropertyDetailsData: propertyDetailsData,
+              sampleRawData: rawData,
+              basementIncludedType: typeof propertyData.basement_included,
+              basementIncludedValue: propertyData.basement_included,
+            });
+          }
+
+          propertyDataArray.push(propertyData);
+          propertyDetailsArray.push(propertyDetailsData);
+        });
+
+        // Filter valid property records - require zcrm_id as it's the unique identifier
+        const validPropertyData = propertyDataArray.filter(p => p.zcrm_id);
+
+        if (validPropertyData.length === 0) {
+          console.log('No valid property records found - need zcrm_id');
+          results.endTime = new Date();
+          return {
+            statusCode: 200,
+            message: 'CSV import completed (no valid records)',
+            data: {
+              ...results,
+              duration: `${results.endTime.getTime() - results.startTime.getTime()}ms`,
+              recordsPerSecond: 0,
+            },
+          };
+        }
+
+        // Process properties in chunks for large datasets
+        const chunkSize = 100;
+        let totalPropertiesInserted = 0;
+
+        for (let i = 0; i < validPropertyData.length; i += chunkSize) {
+          const chunk = validPropertyData.slice(i, i + chunkSize);
+          try {
+            // Validate data types before inserting
+            const validatedChunk = chunk.map(data => {
+              const validatedData = { ...data };
+
+              // Ensure basement_included is a string or null
+              if (validatedData.basement_included !== null && validatedData.basement_included !== undefined) {
+                validatedData.basement_included = String(validatedData.basement_included);
+              }
+
+              // Ensure all boolean fields are actually boolean or null
+              const booleanFields = [
+                'fireplace',
+                'fireplace_bedroom',
+                'den_can_be_used_as_a_bedroom',
+                'upgraded_bathrooms',
+                'heated_floors',
+                'dishwasher',
+                'upgraded_kitchen',
+                'washer_dryer_in_unit',
+                'upgraded_back_splash',
+                'new_ice_maker',
+              ];
+              booleanFields.forEach(field => {
+                if (validatedData[field] !== null && validatedData[field] !== undefined && typeof validatedData[field] !== 'boolean') {
+                  console.warn(`⚠️ Converting ${field} from ${typeof validatedData[field]} to null: ${validatedData[field]}`);
+                  validatedData[field] = null;
+                }
+              });
+
+              return validatedData;
+            });
+
+            // Use createMany for properties (bulk insert in chunks)
+            const propertyResult = await this.prisma.properties.createMany({
+              data: validatedChunk.map(data => ({
+                ...data,
+                created_at: new Date(),
+                updated_at: new Date(),
+              })),
+              skipDuplicates: true,
+            });
+
+            totalPropertiesInserted += propertyResult.count;
+            console.log(`✅ Inserted ${propertyResult.count} properties in chunk ${Math.floor(i / chunkSize) + 1}`);
+          } catch (insertError) {
+            console.error('Property insert error for chunk:', Math.floor(i / chunkSize) + 1);
+            console.error('Error details:', insertError);
+            // Continue with next chunk
+          }
+        }
+
+        results.successful = totalPropertiesInserted;
+        console.log(`✅ Total inserted ${totalPropertiesInserted} properties using createMany in chunks`);
+
+        const insertedPropertyIds: { id: string; zcrm_id: string | null }[] = [];
+
+        for (let i = 0; i < validPropertyData.length; i += chunkSize) {
+          const chunk = validPropertyData.slice(i, i + chunkSize);
+
+          // Get the zcrm_ids for this chunk
+          const chunkZcrmIds = chunk.map(p => p.zcrm_id).filter(Boolean);
+
+          if (chunkZcrmIds.length > 0) {
+            // Find the properties we just inserted by their zcrm_id
+            const chunkInsertedProperties = await this.prisma.properties.findMany({
+              where: { zcrm_id: { in: chunkZcrmIds } },
+              select: { id: true, zcrm_id: true },
+              orderBy: { created_at: 'desc' }, // Get the most recently created
+            });
+
+            // Map properties in the same order as the chunk
+            for (const propertyData of chunk) {
+              const insertedProperty = chunkInsertedProperties.find(p => p.zcrm_id === propertyData.zcrm_id);
+              if (insertedProperty) {
+                insertedPropertyIds.push(insertedProperty);
+              }
+            }
+          }
+        }
+
+        // Prepare property_details data with property_id using array index
+        const propertyDetailsWithIds = validPropertyData
+          .map((propertyData, index) => {
+            const propertyDetailsData = propertyDetailsArray[index];
+            // Get the property_id from the same index in insertedPropertyIds
+            const insertedProperty = insertedPropertyIds[index];
+
+            if (!insertedProperty) {
+              console.log(`⚠️ No matching property found for index ${index}:`, {
+                zcrm_id: propertyData.zcrm_id,
+                name: propertyData.name,
+                address: propertyData.address,
+                city: propertyData.city,
+              });
+              return null;
+            }
+
+            return {
+              ...propertyDetailsData,
+              property_id: insertedProperty.id,
+              created_at: new Date(),
+              updated_at: new Date(),
+            };
+          })
+          .filter((data): data is Record<string, any> & { property_id: string; created_at: Date; updated_at: Date } => !!data);
+
+        if (propertyDetailsWithIds.length > 0) {
+          let totalPropertyDetailsInserted = 0;
+
+          for (let i = 0; i < propertyDetailsWithIds.length; i += chunkSize) {
+            const chunk = propertyDetailsWithIds.slice(i, i + chunkSize);
+
+            console.log(`Processing property_details chunk ${Math.floor(i / chunkSize) + 1}/${Math.ceil(propertyDetailsWithIds.length / chunkSize)}`);
+
+            try {
+              // Comprehensive type validation for ALL property_details fields
+              const validatedChunk = chunk.map(data => {
+                const validatedData = { ...data };
+
+                // Define field types based on Prisma schema
+                const fieldTypes = {
+                  // Boolean fields
+                  boolean: [
+                    'outdoor_pool',
+                    'unit_owner_deal',
+                    'huge_private_terrace',
+                    'heat_inclusion',
+                    'carbon_monoxide_detector',
+                    'internet_inclusion',
+                    'synced_web_tp',
+                    'create_legal_file',
+                    'create_task_temporary',
+                    'task_temporary_2',
+                    'fully_marketed',
+                    'private_garage',
+                    'tons_of_natural_light',
+                    'central_vaccum',
+                    'ac_inclusion',
+                    'management_deal_created',
+                    'corner_unit',
+                    'update_portfolio',
+                    'flushing_of_drain_work_order',
+                    'walk_in_closets',
+                    'active_1_10_days',
+                    'phone_inclusion',
+                    'aether_lease_check',
+                    'electricity_inclusion',
+                    'high_floor',
+                    'liv_rent',
+                    'walk_out_to_garage',
+                    'save_attachments',
+                    'published_rental',
+                    'penthouse',
+                    'tennis_court',
+                    'locked_s',
+                    'party_room',
+                    'kijiji',
+                    'on_site_laundry',
+                    'carbon_monoxide_detectors',
+                    'temporary_create_inspection',
+                    'duct_cleaning_work_order',
+                    'kijiji_data_importer',
+                    'garage_door_closer',
+                    'lift',
+                    'create_project_manually',
+                    'cable_inclusion',
+                    'farhad_work_orders',
+                    'active_lease',
+                    'personal_thermostat',
+                    'tenant_moving_in',
+                    'suggest_prospects_and_deals',
+                    'duct_cleaninga',
+                    'new_ice_maker',
+                  ],
+                  // Integer fields
+                  int: [
+                    'tenant_prospect_marketed_price_multiplied',
+                    'daily_rent',
+                    'setup_fee_property_management',
+                    'setup_fee',
+                    'max_occupants',
+                    'number_of_parking_spaces',
+                    'number_of_lockers',
+                    'market_price_with_parking_and_locker',
+                    'marketed_price',
+                    'number_of_floors',
+                  ],
+                  // Float fields
+                  float: ['exchange_rate', 'management_fees', 'last_month_rent_deposit', 'retainer_balance'],
+                  // DateTime fields
+                  datetime: [
+                    'tenant_cons_email_last_sent',
+                    'management_end_date',
+                    'noe_vacancy_date',
+                    'management_start_date',
+                    'last_activity_time',
+                    'when_was_the_property_leased',
+                    'closing_date',
+                    'noe_date_and_time_from_owner_portal',
+                    'date_under_management',
+                    'modified_time',
+                    'created_time',
+                    'termination_date',
+                    'date_unpublished',
+                    'unsubscribed_time',
+                  ],
+                  // String array fields
+                  stringArray: ['tag'],
+                  // JSON fields
+                  json: ['owner', 'territory', 'modified_by', 'associated_portfolios', 'created_by', 'raw_data'],
+                };
+
+                // Process each field type
+                Object.entries(fieldTypes).forEach(([type, fields]) => {
+                  fields.forEach(field => {
+                    if (validatedData[field] !== null && validatedData[field] !== undefined) {
+                      switch (type) {
+                        case 'boolean':
+                          if (typeof validatedData[field] !== 'boolean') {
+                            const value = String(validatedData[field]).toLowerCase().trim();
+                            if (value === 'true' || value === 'yes' || value === '1') {
+                              validatedData[field] = true;
+                            } else if (value === 'false' || value === 'no' || value === '0') {
+                              validatedData[field] = false;
+                            } else {
+                              validatedData[field] = null;
+                            }
+                          }
+                          break;
+
+                        case 'int':
+                          if (typeof validatedData[field] !== 'number') {
+                            const value = String(validatedData[field]).trim();
+                            if (value && value !== 'n/a' && value !== 'N/A' && !isNaN(Number(value))) {
+                              validatedData[field] = parseInt(value, 10);
+                            } else {
+                              validatedData[field] = null;
+                            }
+                          }
+                          break;
+
+                        case 'float':
+                          if (typeof validatedData[field] !== 'number') {
+                            const value = String(validatedData[field]).trim();
+                            if (value && value !== 'n/a' && value !== 'N/A' && !isNaN(Number(value))) {
+                              validatedData[field] = parseFloat(value);
+                            } else {
+                              validatedData[field] = null;
+                            }
+                          }
+                          break;
+
+                        case 'datetime':
+                          if (!(validatedData[field] instanceof Date)) {
+                            const value = String(validatedData[field]).trim();
+                            if (value && value !== 'n/a' && value !== 'N/A' && value !== '') {
+                              try {
+                                const date = new Date(value);
+                                if (!isNaN(date.getTime())) {
+                                  validatedData[field] = date;
+                                } else {
+                                  validatedData[field] = null;
+                                }
+                              } catch (error) {
+                                validatedData[field] = null;
+                              }
+                            } else {
+                              validatedData[field] = null;
+                            }
+                          }
+                          break;
+
+                        case 'stringArray':
+                          if (!Array.isArray(validatedData[field])) {
+                            if (typeof validatedData[field] === 'string') {
+                              const value = validatedData[field].trim();
+                              if (value && value !== 'n/a' && value !== 'N/A') {
+                                validatedData[field] = value
+                                  .split(/[,;|]/)
+                                  .map(item => item.trim())
+                                  .filter(item => item.length > 0);
+                              } else {
+                                validatedData[field] = [];
+                              }
+                            } else {
+                              validatedData[field] = [];
+                            }
+                          }
+                          break;
+
+                        case 'json':
+                          if (typeof validatedData[field] === 'string') {
+                            const value = validatedData[field].trim();
+                            if (value && value !== 'n/a' && value !== 'N/A') {
+                              try {
+                                // Try to parse as JSON first
+                                validatedData[field] = JSON.parse(value);
+                              } catch (error) {
+                                // If not valid JSON, create a simple object with id
+                                validatedData[field] = { id: value, name: '', email: '' };
+                              }
+                            } else {
+                              validatedData[field] = null;
+                            }
+                          } else if (typeof validatedData[field] !== 'object' || validatedData[field] === null) {
+                            validatedData[field] = null;
+                          }
+                          break;
+                      }
+                    }
+                  });
+                });
+
+                return validatedData;
+              });
+
+              // Use createMany for property_details (bulk insert in chunks)
+              const propertyDetailsResult = await this.prisma.property_details.createMany({
+                data: validatedChunk,
+                skipDuplicates: true,
+              });
+
+              totalPropertyDetailsInserted += propertyDetailsResult.count;
+              console.log(`✅ Inserted ${propertyDetailsResult.count} property_details in chunk ${Math.floor(i / chunkSize) + 1}`);
+            } catch (insertError) {
+              console.error('Property details insert error for chunk:', Math.floor(i / chunkSize) + 1);
+              console.error('Error details:', insertError);
+              // Continue with next chunk
+            }
+          }
+
+          console.log(`✅ Total inserted ${totalPropertyDetailsInserted} property_details using createMany in chunks`);
+        }
+
+        results.endTime = new Date();
+        const duration = results.endTime.getTime() - results.startTime.getTime();
+
+        return {
+          statusCode: 200,
+          message: 'CSV import completed',
+          data: {
+            ...results,
+            duration: `${duration}ms`,
+            recordsPerSecond: Math.round((results.successful / (duration / 1000)) * 100) / 100,
+            propertyDetailsInserted: propertyDetailsWithIds.length,
+          },
+        };
+      } catch (error) {
+        console.error('Bulk import failed:', error);
+        results.failed = records.length;
+        results.errors.push(`Bulk import failed: ${error.message}`);
+        results.endTime = new Date();
+        throw new InternalServerErrorException(`CSV import failed: ${error.message}`);
+      }
+    } catch (error) {
+      console.error('CSV import error:', error);
+      throw new InternalServerErrorException(`CSV import failed: ${error.message}`);
     }
   }
 }

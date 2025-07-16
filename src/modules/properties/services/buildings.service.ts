@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../shared/prisma/prisma.service';
 import { CreateBuildingDto } from '../dto/create-building.dto';
@@ -95,8 +91,7 @@ export class BuildingsService {
     Modified_Time: 'modified_time',
     Last_Activity_Time: 'last_activity_time',
     Unsubscribed_Time: 'unsubscribed_time',
-    update_building_workflow_automations:
-      'update_building_workflow_automations',
+    update_building_workflow_automations: 'update_building_workflow_automations',
     zoho_sign_rma_request_id: 'zoho_sign_rma_request_id',
     visitor_parking: 'visitor_parking',
     wheelchair_access: 'wheelchair_access',

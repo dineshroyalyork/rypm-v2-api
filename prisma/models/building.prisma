@@ -1,4 +1,4 @@
-model building {
+model buildings {
   id                                              String    @id @default(uuid())
   
   // Basic Information
