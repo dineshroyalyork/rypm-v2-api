@@ -477,7 +477,12 @@ export class PropertiesService {
     };
   }
 
-  async getAllPropertiesSummary(tenant_id?: string, page_number = 1, page_size = 10, search?: string) {
+  async getAllPropertiesSummary(
+    tenant_id?: string,
+    page_number = 1,
+    page_size = 10,
+    search?: string,
+  ) {
     let where: any = {};
     if (tenant_id) {
       // Check for rental preference only if tenant_id is defined
@@ -512,6 +517,7 @@ export class PropertiesService {
         name: true,
         bedrooms: true,
         bathrooms: true,
+        updated_at: true,
         property_details: {
           select: {
             marketed_price: true,
@@ -523,6 +529,10 @@ export class PropertiesService {
     });
     const paginated = paginateArray(allProperties, page_number, page_size);
 
+    // Calculate last week's date
+    const lastWeek = new Date();
+    lastWeek.setDate(lastWeek.getDate() - 7);
+
     let dataWithLiked = paginated.data;
     if (tenant_id) {
       // Fetch liked property IDs for this tenant
@@ -531,10 +541,17 @@ export class PropertiesService {
         select: { property_ids: true },
       });
       const likedIds = liked ? new Set(liked.property_ids) : new Set();
-      // Add liked: true/false to each property
+      // Add liked: true/false and is_new_property to each property
       dataWithLiked = paginated.data.map((prop) => ({
         ...prop,
         liked: likedIds.has(prop.id),
+        is_new_property: new Date(prop.updated_at) >= lastWeek,
+      }));
+    } else {
+      // Add is_new_property to each property
+      dataWithLiked = paginated.data.map((prop) => ({
+        ...prop,
+        is_new_property: new Date(prop.updated_at) >= lastWeek,
       }));
     }
 
@@ -546,6 +563,119 @@ export class PropertiesService {
       total_count: paginated.total_count,
       page_number: paginated.page_number,
       page_size: paginated.page_size,
+    };
+  }
+
+  async getPropertyById(property_id: string, tenant_id?: string) {
+    const property = await this.prisma.property.findUnique({
+      where: { id: property_id },
+      select: {
+        id: true,
+        name: true,
+        bedrooms: true,
+        bathrooms: true,
+        property_condition: true,
+        basement_details: true,
+        basement_included: true,
+        total_area_sq_ft: true,
+        number_of_floors: true,
+        fireplace: true,
+        window_coverings: true,
+        ceiling_hight: true,
+        shower_type: true,
+        upgraded_bathrooms: true,
+        countertops_bathroom: true,
+        heated_floors: true,
+        washer_and_dryer: true,
+        countertops: true,
+        dishwasher: true,
+        upgraded_kitchen: true,
+        new_ice_maker: true,
+        upgraded_back_splash: true,
+        stove_oven: true,
+        cooktop_manufacture: true,
+        property_details: {
+          select: {
+            marketed_price: true,
+            latitude: true,
+            longitude: true,
+            earliest_move_in_date: true,
+            hot_water_tank_provider: true,
+            refrigerator_manufacture: true,
+            microwave_manufacture: true,
+            ventilation_hood_manufacture: true,
+            associated_building: true,
+            unit_category: true,
+          },
+        },
+      },
+    });
+    if (!property) {
+      return {
+        statusCode: 404,
+        success: false,
+        message: 'Property not found',
+        data: null,
+      };
+    }
+    let liked = false;
+    if (tenant_id) {
+      const likedList = await this.prisma.liked.findUnique({
+        where: { tenant_id },
+        select: { property_ids: true },
+      });
+      liked = likedList ? likedList.property_ids.includes(property_id) : false;
+    }
+    // Fetch building info if associated_building.id exists
+    let building: any = null;
+    const ab = property.property_details?.associated_building;
+    let buildingId: string | undefined;
+    if (ab && typeof ab === 'object' && ab !== null && 'id' in ab && typeof ab.id === 'string') {
+      buildingId = ab.id;
+    }
+    if (buildingId) {
+      building = await this.prisma.building.findUnique({
+        where: { id: buildingId },
+        select: {
+          address: true,
+          city: true,
+          country: true,
+          province: true,
+          postal_code: true,
+          date_of_construction: true,
+          concierge_building_management_info: true,
+          keyless_entry: true,
+          onsite_staff: true,
+          elevators: true,
+          security_onsite: true,
+          has_bicycle_storage: true,
+          wheelchair_access: true,
+          has_guest_suites: true,
+          laundry_facilities: true,
+          pet_spa: true,
+          outdoor_patio: true,
+          has_rooftop_patio: true,
+          indoor_child_play_area: true,
+          outdoor_child_play_area: true,
+          has_pool: true,
+          has_outdoor_pool: true,
+          has_cabana: true,
+          has_tennis_court: true,
+          remote_garage: true,
+          visitor_parking: true,
+          parking_garage: true,
+          has_subway_access: true,
+          public_transit: true,
+          car_wash: true,
+          electric_car_charging_stations: true,
+        },
+      });
+    }
+    return {
+      statusCode: 200,
+      success: true,
+      message: 'Property fetched successfully',
+      data: { ...property, liked, building },
     };
   }
 }

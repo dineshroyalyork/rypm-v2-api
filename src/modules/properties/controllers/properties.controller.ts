@@ -1,6 +1,6 @@
 import { AuthGuard } from '@/shared/guards/auth.guard';
 import { OptionalAuthGuard } from '@/shared/guards/optional-auth.guard';
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { CreatePropertyDto } from '../dto/create-property.dto';
 import { RentalPreferencesDto } from '../dto/rental-preferences.dto';
@@ -45,5 +45,15 @@ export class PropertiesController {
   async getRentalPreferences(@Req() req: Request) {
     const tenant_id = (req as any).user?.sub || (req as any).user?.id;
     return this.propertiesService.getRentalPreferences(tenant_id);
+  }
+
+  @UseGuards(OptionalAuthGuard)
+  @Get(':id')
+  async getPropertyById(@Param('id') property_id: string, @Req() req: Request) {
+    let tenant_id: string | undefined = undefined;
+    if ((req as any).user && ((req as any).user.sub || (req as any).user.id)) {
+      tenant_id = (req as any).user.sub || (req as any).user.id;
+    }
+    return this.propertiesService.getPropertyById(property_id, tenant_id);
   }
 }
