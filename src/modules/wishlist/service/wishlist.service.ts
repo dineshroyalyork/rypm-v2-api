@@ -1,4 +1,5 @@
 import { PrismaService } from '@/shared/prisma/prisma.service';
+import { paginateArray } from '@/shared/utils/response';
 import { HttpException, Injectable } from '@nestjs/common';
 import { AddPropertyDto } from '../dto/add-property.dto';
 import { CreateWishlistDto } from '../dto/create-wishlist.dto';
@@ -22,6 +23,7 @@ export class WishlistService {
       data: { name: dto.name, tenant_id },
     });
     return {
+      statusCode: 200,
       success: true,
       message: 'Wishlist created successfully',
       data: wishlist,
@@ -39,6 +41,7 @@ export class WishlistService {
     });
 
     return {
+      statusCode: 200,
       success: true,
       message: 'Wishlist list fetched successfully',
       data: wishlists.map((w) => ({
@@ -66,6 +69,7 @@ export class WishlistService {
       });
     }
     return {
+      statusCode: 200,
       success: true,
       message: 'Properties added to wishlist successfully',
     };
@@ -81,6 +85,7 @@ export class WishlistService {
       },
     });
     return {
+      statusCode: 200,
       success: true,
       message: 'Property removed from wishlist successfully',
     };
@@ -103,6 +108,7 @@ export class WishlistService {
     });
 
     return {
+      statusCode: 200,
       success: true,
       message: 'Selected properties removed from wishlist successfully',
     };
@@ -115,6 +121,7 @@ export class WishlistService {
     });
 
     return {
+      statusCode: 200,
       success: true,
       message: 'Wishlist renamed successfully',
       data: wishlist,
@@ -124,6 +131,7 @@ export class WishlistService {
   async deleteMultipleWishlists(wishlist_ids: string[]) {
     if (!Array.isArray(wishlist_ids) || wishlist_ids.length === 0) {
       return {
+        statusCode: 200,
         success: false,
         message: 'No wishlist IDs provided',
       };
@@ -142,6 +150,7 @@ export class WishlistService {
     });
 
     return {
+      statusCode: 200,
       success: true,
       message: 'Wishlists deleted successfully',
       deleted_count: wishlist_ids.length,
@@ -175,22 +184,14 @@ export class WishlistService {
     }
 
     return {
+      statusCode: 200,
       success: true,
       message: 'Properties moved to new wishlist successfully',
     };
   }
 
   async getWishlistById(wishlist_id: string, page_number = 1, page_size = 10) {
-    // Calculate skip and take for pagination
-    const skip = (page_number - 1) * page_size;
-    const take = page_size;
-
-    // Get total count of properties in the wishlist
-    const totalCount = await this.prisma.wishlist_property.count({
-      where: { wishlist_id },
-    });
-
-    // Fetch wishlist and paginated properties
+    // Fetch wishlist and all properties
     const wishlist = await this.prisma.wishlist.findUnique({
       where: { id: wishlist_id },
       select: {
@@ -200,13 +201,20 @@ export class WishlistService {
         created_at: true,
         updated_at: true,
         properties: {
-          skip,
-          take,
           select: {
             property: {
               select: {
                 id: true,
-                // name: true,
+                name: true,
+                bathrooms: true,
+                bedrooms: true,
+                property_details: {
+                  select: {
+                    marketed_price: true,
+                    latitude: true,
+                    longitude: true,
+                  },
+                },
               },
             },
           },
@@ -214,18 +222,22 @@ export class WishlistService {
       },
     });
 
+    if (!wishlist) throw new HttpException('Wishlist not found', 404);
+
     // Flatten property info for easier consumption
-    const properties = wishlist?.properties?.map((wp) => wp.property) || [];
+    const allProperties = wishlist.properties.map((wp) => wp.property);
+    const paginated = paginateArray(allProperties, page_number, page_size);
 
     return {
+      statusCode: 200,
       success: true,
       message: 'Wishlist details fetched successfully',
       data: {
         ...wishlist,
-        properties,
-        total_count: totalCount,
-        page_number,
-        page_size,
+        properties: paginated.data,
+        total_count: paginated.total_count,
+        page_number: paginated.page_number,
+        page_size: paginated.page_size,
       },
     };
   }

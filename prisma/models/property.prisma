@@ -9,6 +9,7 @@ model property {
     basement_included                              Boolean?
     total_area_sq_ft                               Int?
     number_of_floors                               Int?
+    name                                           String?
     
     // Common Area Features
     fireplace                                      Boolean?

@@ -214,6 +214,7 @@ model property {
     basement_included                              Boolean?
     total_area_sq_ft                               Int?
     number_of_floors                               Int?
+    name                                           String?
     
     // Common Area Features
     fireplace                                      Boolean?
@@ -258,6 +259,8 @@ model property {
     // Appliance Brands - Kitchen
     refrigerator_manufacture                       String?
     stove_oven                                     String?
+    raw_data                                       Json?
+    wishlists     wishlist_property[]
     dishwasher_manufacture                         String?
     microwave_manufacture                          String?
     cooktop_manufacture                            String?
@@ -340,7 +343,6 @@ model property_details {
     corner_unit                                    Boolean?
     email                                          String?
     closets                                        String?
-    name                                           String?
     last_activity_time                             DateTime?
     website_verified                               String?
     unsubscribed_mode                              String?
@@ -479,8 +481,7 @@ model property_details {
     wall_oven_manufacture                          String?
     craigslist                                     String?
     raw_data                                       Json?
-    wishlists     wishlist_property[]
-  
+    
     // Additional fields from Zoho mapping
     parking_level_num                              String?
     year_built                                     String?
@@ -525,7 +526,7 @@ model tenants {
   device_tokens         device_tokens[]
   login_methods         login_methods[]
   wishlists              wishlist[] 
-  rental_preference    rental_preference? 
+ ental_preference     rental_preference?
 }
 
 

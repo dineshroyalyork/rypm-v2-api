@@ -1,3 +1,4 @@
+import { AuthGuard } from '@/shared/guards/auth.guard';
 import {
   Body,
   Controller,
@@ -9,10 +10,9 @@ import {
   UsePipes,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { AuthGuard } from '@/shared/guards/auth.guard';
-import { LikedService } from '../service/liked.service';
 import { ZodValidationPipe } from 'nestjs-zod';
-import { addLikedSchema, AddLikedDto } from '../dto/add-liked.dto';
+import { AddLikedDto, addLikedSchema } from '../dto/add-liked.dto';
+import { LikedService } from '../service/liked.service';
 
 @UseGuards(AuthGuard)
 @Controller({ path: 'liked', version: '2' })
@@ -39,9 +39,18 @@ export class LikedController {
     return this.likedService.removeLiked(tenant_id, addLikedDto.property_id);
   }
 
-  @Get()
+  @Get('summary')
   async getAllLiked(@Req() req: Request) {
     const tenant_id = (req as any).user?.sub || (req as any).user?.id;
-    return this.likedService.getAllLiked(tenant_id);
+    const page_number = req.query.page_number ? parseInt(req.query.page_number as string, 10) : 1;
+    const page_size = req.query.page_size ? parseInt(req.query.page_size as string, 10) : 10;
+    return this.likedService.getAllLiked(tenant_id,page_number, page_size);
+  }
+
+  @Get()
+  async getLikedSummary(@Req() req: Request) {
+    const tenant_id = (req as any).user?.sub || (req as any).user?.id;
+    const liked = await this.likedService.getLikedSummary(tenant_id);
+    return liked;
   }
 }
