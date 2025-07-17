@@ -8,159 +8,143 @@ datasource db {
 } 
 
 model buildings {
-  id                                              String    @id @default(uuid())
-  
+  id                                   String    @id @default(uuid())
   // Basic Information
-  building_id                                     String?   @unique
-  name                                            String?
-  address                                         String?
-  city                                            String?
-  province                                        String?
-  country                                         String?
-  postal_code                                     String?
-  latitude                                        String?
-  longitude                                       String?
-  
+  building_id                          String?
+  building_property_id                 String?
+  name                                 String?
+  address                              String?
+  city                                 String?
+  province                             String?
+  country                              String?
+  postal_code                          String?
+  latitude                             String?
+  longitude                            String?
   // Building Details
-  property_type                                   String?
-  category                                        String?
-  year_built1                                     Int?
-  date_of_construction                            DateTime?
-  floor_count                                     Int?
-  unit_count                                      Int?
-  unit_name                                       String?
-  
+  property_type                        String?
+  category                             String?
+  year_built1                          Int?
+  date_of_construction                 DateTime?
+  floor_count                          Int?
+  unit_count                           Int?
+  unit_name                            String?
   // Contact Information
-  office_phone_number                             String?
-  office_address                                  String?
-  property_management_contact_email               String?
-  
+  office_phone_number                  String?
+  office_address                       String?
+  property_management_contact_email    String?
   // Ownership & Management
-  owner                                           Json?
-  created_by                                      Json?
-  modified_by                                     Json?
-  territory                                       Json?
-  territory_id                                    String?
-  territory_search_result                         String?
-  
+  owner                                Json?
+  created_by                           Json?
+  modified_by                          Json?
+  territory                            Json?
+  territory_id                         String?
+  territory_search_result              String?
   // Financial Information
-  currency                                        String?
-  exchange_rate                                   Float?
-  setup_fee_property_management                   Int?
-  flat_fee_utilities                              String?
-  
+  currency                             String?
+  exchange_rate                        Float?
+  setup_fee_property_management        Int?
+  flat_fee_utilities                   String?
   // Building Features
-  elevators                                       Boolean?
-  parking_garage                                  Boolean?
-  remote_garage                                   Boolean?
-  visitor_parking                                 Boolean?
-  electric_car_charging_stations                  Boolean?
-  wheelchair_access                               Boolean?
-  keyless_entry                                   Boolean?
-  security_onsite                                 Boolean?
-  onsite_staff                                    Boolean?
-  
+  elevators                            Boolean?
+  parking_garage                       Boolean?
+  remote_garage                        Boolean?
+  visitor_parking                      Boolean?
+  electric_car_charging_stations       Boolean?
+  wheelchair_access                    Boolean?
+  keyless_entry                        Boolean?
+  security_onsite                      Boolean?
+  onsite_staff                         Boolean?
   // Amenities
-  laundry_facilities                              Boolean?
-  rec_room                                        Boolean?
-  day_care_centre                                 Boolean?
-  indoor_child_play_area                          Boolean?
-  outdoor_child_play_area                         Boolean?
-  library                                         Boolean?
-  piano_lounge                                    Boolean?
-  concierge_building_management_info              String?
-  
+  laundry_facilities                   Boolean?
+  rec_room                             Boolean?
+  day_care_centre                      Boolean?
+  indoor_child_play_area               Boolean?
+  outdoor_child_play_area              Boolean?
+  library                              Boolean?
+  piano_lounge                         Boolean?
+  concierge_building_management_info   String?
   // Sports & Recreation
-  has_golf_range                                  Boolean?
-  has_tennis_court                                Boolean?
-  has_basketball_court                            Boolean?
-  has_squash_court                                Boolean?
-  has_bowling_alley                               Boolean?
-  has_movie_theater                               Boolean?
-  has_billiards_room                              Boolean?
-  has_yoga_room                                   Boolean?
-  
+  has_golf_range                       Boolean?
+  has_tennis_court                     Boolean?
+  has_basketball_court                 Boolean?
+  has_squash_court                     Boolean?
+  has_bowling_alley                    Boolean?
+  has_movie_theater                    Boolean?
+  has_billiards_room                   Boolean?
+  has_yoga_room                        Boolean?
   // Wellness & Spa
-  has_whirlpool                                   Boolean?
-  has_steam_room                                  Boolean?
-  has_sauna                                       Boolean?
-  has_pool                                        Boolean?
-  has_outdoor_pool                                Boolean?
-  pet_spa                                         Boolean?
-  has_fitness_center                              Boolean?
-  has_meeting_room                                Boolean?
-  has_ventilation_hood                            Boolean?
-  outdoor_patio                                   Boolean?
-  
+  has_whirlpool                        Boolean?
+  has_steam_room                       Boolean?
+  has_sauna                            Boolean?
+  has_pool                             Boolean?
+  has_outdoor_pool                     Boolean?
+  pet_spa                              Boolean?
+  has_fitness_center                   Boolean?
+  has_meeting_room                     Boolean?
+  has_ventilation_hood                 Boolean?
+  outdoor_patio                        Boolean?
   // Social Spaces
-  has_cabana                                      Boolean?
-  has_rooftop_patio                               Boolean?
-  has_party_room                                  Boolean?
-  has_bbq_terrace                                 Boolean?
-  has_lobby_lounge                                Boolean?
-  has_guest_suites                                Boolean?
-  has_business_centre                             Boolean?
-  has_game_room                                   Boolean?
-  
+  has_cabana                           Boolean?
+  has_rooftop_patio                    Boolean?
+  has_party_room                       Boolean?
+  has_bbq_terrace                      Boolean?
+  has_lobby_lounge                     Boolean?
+  has_guest_suites                     Boolean?
+  has_business_centre                  Boolean?
+  has_game_room                        Boolean?
   // Storage & Parking
-  has_bicycle_storage                             Boolean?
-  car_wash                                        Boolean?
-  
+  has_bicycle_storage                  Boolean?
+  car_wash                             Boolean?
   // Utilities & Services
-  heat_included1                                  Boolean?
-  ac_included1                                    Boolean?
-  internet_included                               Boolean?
-  cable_included                                  Boolean?
-  water_filtration_softener_rental                Boolean?
-  hot_water_tank_provider                         String?
-  gas_provider                                    String?
-  hydro_provider                                  String?
-  water_provider                                  String?
-  utility_notes                                   String?
-  
+  heat_included1                       Boolean?
+  ac_included1                         Boolean?
+  internet_included                    Boolean?
+  cable_included                       Boolean?
+  water_filtration_softener_rental     Boolean?
+  hot_water_tank_provider              String?
+  gas_provider                         String?
+  hydro_provider                       String?
+  water_provider                       String?
+  utility_notes                        String?
   // Management & Legal
-  management_start_date                           DateTime?
-  rma_effective_date                              DateTime?
-  rma_expiry_date                                 DateTime?
-  rma_duration                                    String?
-  rma_signed_by_owner                             Boolean?
-  corporation_number                              String?
-  developer_name                                  String?
-  
+  management_start_date                DateTime?
+  rma_effective_date                   DateTime?
+  rma_expiry_date                      DateTime?
+  rma_duration                         String?
+  rma_signed_by_owner                  Boolean?
+  corporation_number                   String?
+  developer_name                       String?
   // Marketing & Listing
-  building_marketing_description                  String?
-  added_to_tp                                     String?
-  kijiji_data_importer                            Boolean?
-  building_folder_id                              String?
-  
+  building_marketing_description       String?
+  added_to_tp                          String?
+  kijiji_data_importer                 Boolean?
+  building_folder_id                   String?
   // Status & Flags
-  checked_for_deletion_status                     Boolean?
-  verified                                        Boolean?
-  duplicate_check                                 Boolean?
-  locked_s                                        Boolean?
-  pet_restrictions                                Boolean?
-  public_transit                                  Boolean?
-  has_security                                    Boolean?
-  has_subway_access                               Boolean?
-  
+  checked_for_deletion_status          Boolean?
+  verified                             Boolean?
+  duplicate_check                      Boolean?
+  locked_s                             Boolean?
+  pet_restrictions                     Boolean?
+  public_transit                       Boolean?
+  has_security                         Boolean?
+  has_subway_access                    Boolean?
   // Timestamps
-  created_time                                    DateTime?
-  modified_time                                   DateTime?
-  last_activity_time                              DateTime?
-  unsubscribed_time                               DateTime?
-  
+  created_time                         DateTime?
+  modified_time                        DateTime?
+  last_activity_time                   DateTime?
+  unsubscribed_time                    DateTime?
   // Additional Fields
-  mapquest_id                                     String?
-  geocoding_quality                               String?
-  enter_phone_system                              Boolean?
-  sync_with_owner_portal                          Boolean?
-  update_building_workflow_automations            Boolean?
-  zoho_sign_rma_request_id                        String?
-  
+  mapquest_id                          String?
+  geocoding_quality                    String?
+  enter_phone_system                   Boolean?
+  sync_with_owner_portal               Boolean?
+  update_building_workflow_automations Boolean?
+  zoho_sign_rma_request_id             String?
   // Timestamps
-  created_at                                      DateTime   @default(now())
-  updated_at                                      DateTime   @default(now()) @updatedAt
-} 
+  created_at                           DateTime  @default(now())
+  updated_at                           DateTime  @default(now()) @updatedAt
+}
+
 
 model device_tokens {
    id           String     @id @default(uuid())
