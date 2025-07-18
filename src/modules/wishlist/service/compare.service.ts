@@ -6,7 +6,7 @@ export class CompareService {
   constructor(private prisma: PrismaService) {}
 
   async getPropertiesForCompare(property_ids: string[]) {
-    const properties = await this.prisma.property.findMany({
+    const properties = await this.prisma.properties.findMany({
       where: { id: { in: property_ids } },
     });
     return {

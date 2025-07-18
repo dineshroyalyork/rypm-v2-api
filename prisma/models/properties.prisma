@@ -1,0 +1,69 @@
+model properties {
+  id                            String    @id @default(uuid())
+  // Fields from Unit Features screen
+  zcrm_id                       String?   @unique
+  available_date                DateTime?
+  property_condition            String?
+  basement_details              String?
+  basement_included             String?
+  total_area_sq_ft              Int?
+  number_of_floors              Int?
+  name                          String?
+  city                          String?
+  address                       String?
+  associated_building           Json?
+  // Common Area Features
+  fireplace                     Boolean?
+  window_coverings              String?
+  flooring_common_area          String?
+  ceiling_hight                 String?
+  // Bedroom Features
+  bedrooms                      String?
+  bedroom_layout                String?
+  closets                       String?
+  en_suite_bathrooms            String?
+  fireplace_bedroom             Boolean?
+  den_can_be_used_as_a_bedroom  Boolean?
+  // Bathroom Features
+  bathrooms                     String?
+  shower_type                   String?
+  upgraded_bathrooms            Boolean?
+  countertops_bathroom          String?
+  // Laundry & HVAC
+  central_hvac                  DateTime?
+  heating_ac_unit               String?
+  heated_floors                 Boolean?
+  washer_dryer                  String?
+  // Appliance Brands - Laundry & HVAC
+  furnace                       String?
+  hot_water_heater_manufacturer String?
+  washer_and_dryer              String?
+  air_conditioning_manufacturer String?
+  // Kitchen Features
+  countertops                   String?
+  dishwasher                    Boolean?
+  upgraded_kitchen              Boolean?
+  appliance_finishes            String?
+  new_ice_maker                 Boolean?
+  upgraded_back_splash          Boolean?
+
+  // Appliance Brands - Kitchen
+  refrigerator_manufacture     String?
+  stove_oven                   String?
+  dishwasher_manufacture       String?
+  microwave_manufacture        String?
+  cooktop_manufacture          String?
+  ventilation_hood_manufacture String?
+  dryer_manufacture            String?
+  //coordinates
+  latitude                     String?
+  longitude                    String?
+  // Laundry Features
+  washer_dryer_in_unit         Boolean?
+  // Timestamps
+  created_at                   DateTime          @default(now())
+  updated_at                   DateTime          @default(now()) @updatedAt
+  // Relations
+  property_details             property_details?
+  wishlist_property  wishlist_property[]
+}

@@ -1,4 +1,22 @@
 {
-    "singleQuote": true,
-    "trailingComma": "all"
+  "semi": true,
+  "trailingComma": "es5",
+  "singleQuote": true,
+  "printWidth": 150,
+  "tabWidth": 2,
+  "useTabs": false,
+  "bracketSpacing": true,
+  "arrowParens": "avoid",
+  "endOfLine": "lf",
+  "plugins": ["prettier-plugin-prisma"],
+  "overrides": [
+    {
+      "files": "*.prisma",
+      "options": {
+        "printWidth": 150,
+        "tabWidth": 2,
+        "useTabs": false
+      }
+    }
+  ]
 }

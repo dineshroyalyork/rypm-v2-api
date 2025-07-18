@@ -84,18 +84,19 @@ export class LikedService {
     }
 
     // Fetch property details for all liked IDs
-    const allProperties = await this.prisma.property.findMany({
+    const allProperties = await this.prisma.properties.findMany({
       where: { id: { in: liked.property_ids } },
       select: {
         id: true,
         name: true,
         bedrooms: true,
         bathrooms: true,
+        latitude: true,
+        longitude: true,
         property_details: {
           select: {
             marketed_price: true,
-            latitude: true,
-            longitude: true,
+
           },
         },
       },

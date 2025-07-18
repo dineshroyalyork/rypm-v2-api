@@ -202,17 +202,18 @@ export class WishlistService {
         updated_at: true,
         properties: {
           select: {
-            property: {
+            properties: {
               select: {
                 id: true,
                 name: true,
                 bathrooms: true,
                 bedrooms: true,
+                latitude: true,
+                longitude: true,
                 property_details: {
                   select: {
                     marketed_price: true,
-                    latitude: true,
-                    longitude: true,
+
                   },
                 },
               },
@@ -225,7 +226,7 @@ export class WishlistService {
     if (!wishlist) throw new HttpException('Wishlist not found', 404);
 
     // Flatten property info for easier consumption
-    const allProperties = wishlist.properties.map((wp) => wp.property);
+    const allProperties = wishlist.properties.map((wp) => wp.properties);
     const paginated = paginateArray(allProperties, page_number, page_size);
 
     return {

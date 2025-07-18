@@ -3,7 +3,7 @@ model wishlist_property {
   property_id           String
 
   wishlist              wishlist @relation(fields: [wishlist_id], references: [id])
-  property              property @relation(fields: [property_id], references: [id])
+  properties              properties @relation(fields: [property_id], references: [id])
 
   @@id([wishlist_id, property_id])
 }
