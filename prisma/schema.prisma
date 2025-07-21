@@ -146,9 +146,20 @@ model buildings {
 }
 
 
+model device_tokens {
+   id           String     @id @default(uuid())
+  token        String     // FCM or APNs token
+  platform     String     // "ios" | "android" | "web"
+  created_at   DateTime   @default(now())
+
+  // relation
+  tenant_id    String
+  tenant       tenants     @relation(fields: [tenant_id], references: [id])
+} 
+
 model emergency_contact {
   id            String   @id @default(uuid())
-  tenant_id        String
+  tenant_id        String @unique
   firstName     String
   lastName      String
   email         String
@@ -198,6 +209,15 @@ model housing_detail {
 tenant        tenants            @relation(fields: [tenant_id], references: [id])
 }
 
+
+enum HousingStatus {
+  Renting
+  Owned_Mortgage
+  Owned_Free
+  Family_Friends
+  Shelter
+}
+
 model income_source {
   id                    String    @id @default(uuid())
   tenant_id                String
@@ -220,9 +240,10 @@ model income_source {
   government_program    String?   // Only if Government Assistance (e.g., Ontario Child Benefit)
   
   // Student (No Income / Supported by Parents or OSAP)
-  schoolName            String?   // Only if Student (No Income or Supported by Parents)
+  school_name            String?   // Only if Student (No Income or Supported by Parents)
   additional_income_id   String?  // Self-referencing foreign key for additional income
-  additional_income_relation income_source? @relation("AdditionalIncome", fields: [additional_income_id], references: [id]) // Link to the same Income model
+  additional_income_relation income_source? @relation("AdditionalIncome", fields: [additional_income_id], references: [id])
+  additional_income_sources income_source[] @relation("AdditionalIncome")
   
   created_at             DateTime  @default(now())
   updated_at             DateTime  @updatedAt
@@ -230,6 +251,14 @@ model income_source {
   tenant        tenants            @relation(fields: [tenant_id], references: [id])
 }
 
+
+enum SourceOfIncome {
+  Employed
+  Self_Employed
+  Government_Assistance
+  Student_No_Income
+  Student_Supported_By_Parents
+}
 
 model Liked {
   id          String   @id @default(uuid())
@@ -277,9 +306,25 @@ model pets {
 
   // Relationships
   tenant        tenants            @relation(fields: [tenant_id], references: [id])
-  additional_pet        pets?     @relation("AdditionalPet", fields: [additional_pet_id], references: [id])
+  additional_pet pets? @relation("AdditionalPet", fields: [additional_pet_id], references: [id])
+  additional_pets pets[] @relation("AdditionalPet")
 
   // Optional to keep the other pet linked
+}
+
+enum PetType {
+  Dog
+  Cat
+  Bird
+  Hamster
+  Snake
+  Other
+}
+
+enum PetGender {
+  Male
+  Female
+  Unknown
 }
 
 model properties {
@@ -556,6 +601,22 @@ model property_details {
   updated_at                                     DateTime   @default(now()) @updatedAt
 }
 
+
+model reference_details {
+  id            String   @id @default(uuid())
+  tenant_id     String   @unique
+  first_name     String
+  last_name      String
+  email         String
+  mobile_number  String
+  relationship  String
+
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  tenant         tenants  @relation(fields: [tenant_id], references: [id])
+}
+
 model rental_preference {
   id             String   @id @default(uuid())
   tenant_id      String   @unique
@@ -591,17 +652,17 @@ model tenants {
   device_tokens         device_tokens[]
   login_methods         login_methods[]
   wishlists              wishlist[] 
- ental_preference     rental_preference?
+  rental_preference     rental_preference?
    housing_detail          housing_detail?
   income_source           income_source[]
   pets                   pets[]
-  references             references[]
+  reference_details             reference_details[]
   emergency_contact       emergency_contact?
   vehicles               vehicles[]
 }
 
 
-model Vehicle {
+model vehicles {
   id            String   @id @default(uuid())
   tenant_id        String
   type          String   // Car, Motorcycle, etc.

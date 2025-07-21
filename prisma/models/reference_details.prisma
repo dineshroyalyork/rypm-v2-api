@@ -1,6 +1,6 @@
-model income_source {
+model reference_details {
   id            String   @id @default(uuid())
-  tenant_id        String
+  tenant_id     String   @unique
   first_name     String
   last_name      String
   email         String
@@ -10,5 +10,5 @@ model income_source {
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt
 
-  tenant        tenants            @relation(fields: [tenant_id], references: [id])
+  tenant         tenants  @relation(fields: [tenant_id], references: [id])
 }

@@ -14,7 +14,23 @@ model pets {
 
   // Relationships
   tenant        tenants            @relation(fields: [tenant_id], references: [id])
-  additional_pet        pets?     @relation("AdditionalPet", fields: [additional_pet_id], references: [id])
+  additional_pet pets? @relation("AdditionalPet", fields: [additional_pet_id], references: [id])
+  additional_pets pets[] @relation("AdditionalPet")
 
   // Optional to keep the other pet linked
+}
+
+enum PetType {
+  Dog
+  Cat
+  Bird
+  Hamster
+  Snake
+  Other
+}
+
+enum PetGender {
+  Male
+  Female
+  Unknown
 }

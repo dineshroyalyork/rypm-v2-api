@@ -17,11 +17,11 @@ model tenants {
   device_tokens         device_tokens[]
   login_methods         login_methods[]
   wishlists              wishlist[] 
- ental_preference     rental_preference?
+  rental_preference     rental_preference?
    housing_detail          housing_detail?
   income_source           income_source[]
   pets                   pets[]
-  references             references[]
+  reference_details             reference_details[]
   emergency_contact       emergency_contact?
   vehicles               vehicles[]
 }

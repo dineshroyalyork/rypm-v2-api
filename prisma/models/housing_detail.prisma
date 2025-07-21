@@ -34,3 +34,12 @@ model housing_detail {
 
 tenant        tenants            @relation(fields: [tenant_id], references: [id])
 }
+
+
+enum HousingStatus {
+  Renting
+  Owned_Mortgage
+  Owned_Free
+  Family_Friends
+  Shelter
+}

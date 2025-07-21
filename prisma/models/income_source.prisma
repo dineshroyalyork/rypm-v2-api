@@ -20,12 +20,22 @@ model income_source {
   government_program    String?   // Only if Government Assistance (e.g., Ontario Child Benefit)
   
   // Student (No Income / Supported by Parents or OSAP)
-  schoolName            String?   // Only if Student (No Income or Supported by Parents)
+  school_name            String?   // Only if Student (No Income or Supported by Parents)
   additional_income_id   String?  // Self-referencing foreign key for additional income
-  additional_income_relation income_source? @relation("AdditionalIncome", fields: [additional_income_id], references: [id]) // Link to the same Income model
+  additional_income_relation income_source? @relation("AdditionalIncome", fields: [additional_income_id], references: [id])
+  additional_income_sources income_source[] @relation("AdditionalIncome")
   
   created_at             DateTime  @default(now())
   updated_at             DateTime  @updatedAt
 
   tenant        tenants            @relation(fields: [tenant_id], references: [id])
+}
+
+
+enum SourceOfIncome {
+  Employed
+  Self_Employed
+  Government_Assistance
+  Student_No_Income
+  Student_Supported_By_Parents
 }

@@ -1,4 +1,4 @@
-model Vehicle {
+model vehicles {
   id            String   @id @default(uuid())
   tenant_id        String
   type          String   // Car, Motorcycle, etc.

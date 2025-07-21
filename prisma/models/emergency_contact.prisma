@@ -1,6 +1,6 @@
 model emergency_contact {
   id            String   @id @default(uuid())
-  tenant_id        String
+  tenant_id        String @unique
   firstName     String
   lastName      String
   email         String
