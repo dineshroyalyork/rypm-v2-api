@@ -1,0 +1,36 @@
+model housing_detail {
+  id                     String   @id @default(uuid())
+  tenant_id                 String   @unique
+  housing_status          HousingStatus
+  living_since            DateTime
+
+  // Common Address Info
+  address_line_1           String
+  address_line_2           String?
+  city                   String
+  province               String
+  postal_code             String
+  country                String
+
+  // Conditional Fields Based on Status
+
+  // For RENTED
+  landlord_first_name      String?
+  landlord_Last_name       String?
+  landlord_phone_number    String?
+  landlord_email          String?
+  rent_amount             Int?
+
+  // For OWNED – with mortgage
+  mortgage_amount         Int?
+  payment_obligation      Boolean?
+
+  // For general use
+  bedroom                Int?
+  bathroom               Int?
+
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+
+tenant        tenants            @relation(fields: [tenant_id], references: [id])
+}

@@ -1,0 +1,31 @@
+model income_source {
+  id                    String    @id @default(uuid())
+  tenant_id                String
+  source_of_income        SourceOfIncome // Enum: Employed, Self Employed, Government Assistance, etc.
+  
+  // Employed
+  employer              String?   // Only if Employed
+  manager_name           String?   // Only if Employed
+  manager_phone_number    String?   // Only if Employed
+  manager_email          String?   // Only if Employed
+  position_title         String?   // Only if Employed
+  occupation            String?   // New: Occupation field for Employed
+  start_date             DateTime? // Only if Employed
+  monthly_income         Int?      // Common for all
+  
+  // Self Employed
+  service_provided       String?   // Only if Self Employed
+  
+  // Government Assistance
+  government_program    String?   // Only if Government Assistance (e.g., Ontario Child Benefit)
+  
+  // Student (No Income / Supported by Parents or OSAP)
+  schoolName            String?   // Only if Student (No Income or Supported by Parents)
+  additional_income_id   String?  // Self-referencing foreign key for additional income
+  additional_income_relation income_source? @relation("AdditionalIncome", fields: [additional_income_id], references: [id]) // Link to the same Income model
+  
+  created_at             DateTime  @default(now())
+  updated_at             DateTime  @updatedAt
+
+  tenant        tenants            @relation(fields: [tenant_id], references: [id])
+}

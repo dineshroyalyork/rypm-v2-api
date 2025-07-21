@@ -1,0 +1,14 @@
+model emergency_contact {
+  id            String   @id @default(uuid())
+  tenant_id        String
+  firstName     String
+  lastName      String
+  email         String
+  mobile_number  String
+  relationship  String
+
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+tenant        tenants            @relation(fields: [tenant_id], references: [id])
+}

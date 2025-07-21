@@ -18,4 +18,10 @@ model tenants {
   login_methods         login_methods[]
   wishlists              wishlist[] 
  ental_preference     rental_preference?
+   housing_detail          housing_detail?
+  income_source           income_source[]
+  pets                   pets[]
+  references             references[]
+  emergency_contact       emergency_contact?
+  vehicles               vehicles[]
 }
