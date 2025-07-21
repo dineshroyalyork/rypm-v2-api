@@ -172,93 +172,65 @@ model emergency_contact {
 tenant        tenants            @relation(fields: [tenant_id], references: [id])
 }
 
-model housing_detail {
-  id                     String   @id @default(uuid())
-  tenant_id                 String   @unique
-  housing_status          HousingStatus
-  living_since            DateTime
-
-  // Common Address Info
-  address_line_1           String
-  address_line_2           String?
-  city                   String
-  province               String
-  postal_code             String
-  country                String
-
-  // Conditional Fields Based on Status
-
-  // For RENTED
-  landlord_first_name      String?
-  landlord_Last_name       String?
-  landlord_phone_number    String?
-  landlord_email          String?
-  rent_amount             Int?
-
-  // For OWNED – with mortgage
-  mortgage_amount         Int?
-  payment_obligation      Boolean?
-
-  // For general use
-  bedroom                Int?
-  bathroom               Int?
-
-  created_at              DateTime @default(now())
-  updated_at              DateTime @updatedAt
-
-tenant        tenants            @relation(fields: [tenant_id], references: [id])
-}
-
-
-enum HousingStatus {
-  Renting
-  Owned_Mortgage
-  Owned_Free
-  Family_Friends
-  Shelter
-}
-
-model income_source {
+model housing_details {
   id                    String    @id @default(uuid())
-  tenant_id                String
-  source_of_income        SourceOfIncome // Enum: Employed, Self Employed, Government Assistance, etc.
-  
+  tenant_id             String    @unique
+  housing_status        String
+  living_since          DateTime?
+  // Common Address Info
+  address_line_1        String?
+  address_line_2        String?
+  city                  String?
+  province              String?
+  postal_code           String?
+  country               String?
+  // Conditional Fields Based on Status
+  // For RENTED
+  landlord_first_name   String?
+  landlord_Last_name    String?
+  landlord_phone_number String?
+  landlord_email        String?
+  rent_amount           Int?
+  // For OWNED – with mortgage
+  mortgage_amount       Int?
+  payment_obligation    Boolean?
+  // For general use
+  bedroom               Int?
+  bathroom              Int?
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+
+  tenant tenants @relation(fields: [tenant_id], references: [id])
+}
+
+
+model income_sources {
+  id                         String           @id @default(uuid())
+  tenant_id                  String           @unique
+  source_of_income           String
   // Employed
-  employer              String?   // Only if Employed
-  manager_name           String?   // Only if Employed
-  manager_phone_number    String?   // Only if Employed
-  manager_email          String?   // Only if Employed
-  position_title         String?   // Only if Employed
-  occupation            String?   // New: Occupation field for Employed
-  start_date             DateTime? // Only if Employed
-  monthly_income         Int?      // Common for all
-  
+  employer                   String? // Only if Employed
+  manager_name               String? // Only if Employed
+  manager_phone_number       String? // Only if Employed
+  manager_email              String? // Only if Employed
+  position_title             String? // Only if Employed
+  occupation                 String? // New: Occupation field for Employed
+  start_date                 DateTime? // Only if Employed
+  monthly_income             Int? // Common for all
   // Self Employed
-  service_provided       String?   // Only if Self Employed
-  
+  service_provided           String? // Only if Self Employed
   // Government Assistance
-  government_program    String?   // Only if Government Assistance (e.g., Ontario Child Benefit)
-  
+  government_program         String? // Only if Government Assistance (e.g., Ontario Child Benefit)
   // Student (No Income / Supported by Parents or OSAP)
-  school_name            String?   // Only if Student (No Income or Supported by Parents)
-  additional_income_id   String?  // Self-referencing foreign key for additional income
-  additional_income_relation income_source? @relation("AdditionalIncome", fields: [additional_income_id], references: [id])
-  additional_income_sources income_source[] @relation("AdditionalIncome")
-  
-  created_at             DateTime  @default(now())
-  updated_at             DateTime  @updatedAt
-
-  tenant        tenants            @relation(fields: [tenant_id], references: [id])
+  school_name                String? // Only if Student (No Income or Supported by Parents)
+  additional_income_id       String? // Self-referencing foreign key for additional income
+  additional_income_relation income_sources?  @relation("AdditionalIncome", fields: [additional_income_id], references: [id])
+  additional_income_sources  income_sources[] @relation("AdditionalIncome")
+  created_at                 DateTime         @default(now())
+  updated_at                 DateTime         @updatedAt
+  tenant                     tenants          @relation(fields: [tenant_id], references: [id])
 }
 
-
-enum SourceOfIncome {
-  Employed
-  Self_Employed
-  Government_Assistance
-  Student_No_Income
-  Student_Supported_By_Parents
-}
 
 model Liked {
   id          String   @id @default(uuid())
@@ -290,42 +262,48 @@ model otp_requests {
   tenant       tenants?   @relation(fields: [tenant_id], references: [id])
 } 
 
+model personal_informations {
+  id                      String   @id @default(uuid())
+  tenant_id               String   @unique
+  first_name              String?
+  middle_name             String?
+  sur_name                String?
+  email                   String?
+  mobile_number           String?
+  gender                  String?
+  marital_status          String?
+  credit_score            Int?
+  government_id_name      String?
+  government_id_number    String?
+  social_insurance_number String?
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+  tenant                  tenants  @relation(fields: [tenant_id], references: [id])
+}
+
+
 model pets {
-  id                     String   @id @default(uuid())
-  tenant_id                String   // Foreign key for the user who owns the pet
-  has_pet                Boolean  // Flag indicating whether the user has a pet
-  pet_type               PetType  // Enum: Dog, Cat, Bird, Hamster, Snake, Other
-  breed_type            String?  // Conditional field: breed type only for specific pets (Dog, Cat, etc.)
-  weight                 String   // Pet's weight in lbs or kg
-  gender                 PetGender // Enum: Male, Female, Unknown
-  is_neutered           Boolean  // Whether the pet is neutered
-  animal_description    String?  // For "Other" pets only
-  additional_pet_id      String?  // ID of the linked pet if this is an additional pet
-  created_at            DateTime @default(now())
-  updated_at            DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  tenant_id          String   @unique
+  has_pet            Boolean // Flag indicating whether the user has a pet
+  pet_type           String // Enum: Dog, Cat, Bird, Hamster, Snake, Other
+  breed_type         String? // Conditional field: breed type only for specific pets (Dog, Cat, etc.)
+  weight             String // Pet's weight in lbs or kg
+  gender             String // Enum: Male, Female, Unknown
+  is_neutered        Boolean // Whether the pet is neutered
+  animal_description String? // For "Other" pets only
+  additional_pet_id  String? // ID of the linked pet if this is an additional pet
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
 
   // Relationships
-  tenant        tenants            @relation(fields: [tenant_id], references: [id])
-  additional_pet pets? @relation("AdditionalPet", fields: [additional_pet_id], references: [id])
-  additional_pets pets[] @relation("AdditionalPet")
+  tenant          tenants @relation(fields: [tenant_id], references: [id])
+  additional_pet  pets?   @relation("AdditionalPet", fields: [additional_pet_id], references: [id])
+  additional_pets pets[]  @relation("AdditionalPet")
 
   // Optional to keep the other pet linked
 }
 
-enum PetType {
-  Dog
-  Cat
-  Bird
-  Hamster
-  Snake
-  Other
-}
-
-enum PetGender {
-  Male
-  Female
-  Unknown
-}
 
 model properties {
   id                            String    @id @default(uuid())
@@ -605,88 +583,88 @@ model property_details {
 model reference_details {
   id            String   @id @default(uuid())
   tenant_id     String   @unique
-  first_name     String
-  last_name      String
+  first_name    String
+  last_name     String
   email         String
-  mobile_number  String
+  mobile_number String
   relationship  String
-
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
-
-  tenant         tenants  @relation(fields: [tenant_id], references: [id])
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  tenant        tenants  @relation(fields: [tenant_id], references: [id])
 }
+
 
 model rental_preference {
-  id             String   @id @default(uuid())
-  tenant_id      String   @unique
-  price_min      Int
-  price_max      Int
-  bedrooms       String
-  bathrooms      String
-  parking        String
-  property_type  String?
-  move_in_date   String?
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
-
-  tenant         tenants  @relation(fields: [tenant_id], references: [id])
+  id            String   @id @default(uuid())
+  tenant_id     String   @unique
+  price_min     Int
+  price_max     Int
+  bedrooms      String
+  bathrooms     String
+  parking       String
+  property_type String?
+  move_in_date  String?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  tenant        tenants  @relation(fields: [tenant_id], references: [id])
 }
 
+
 model tenants {
-    id                    String          @id @default(uuid())
-  first_name            String?         // optional
-  last_name             String?         // optional
-  country_code          String?         // optional
-  email                 String?         //optional
-  phone_number          String?         // optional
-  is_email_verified     Boolean         @default(false)
-  is_phone_verified     Boolean         @default(false)
-  notifications_enabled Boolean         @default(true)
-  password              String?         // optional for SSO/magic link
-  created_at            DateTime        @default(now())
-  updated_at            DateTime        @default(now()) @updatedAt
+  id                    String   @id @default(uuid())
+  first_name            String? // optional
+  last_name             String? // optional
+  country_code          String? // optional
+  email                 String? //optional
+  phone_number          String? // optional
+  is_email_verified     Boolean  @default(false)
+  is_phone_verified     Boolean  @default(false)
+  notifications_enabled Boolean  @default(true)
+  password              String? // optional for SSO/magic link
+  created_at            DateTime @default(now())
+  updated_at            DateTime @default(now()) @updatedAt
 
   // relations
   otp_requests          otp_requests[]
   device_tokens         device_tokens[]
   login_methods         login_methods[]
-  wishlists              wishlist[] 
-  rental_preference     rental_preference?
-   housing_detail          housing_detail?
-  income_source           income_source[]
-  pets                   pets[]
-  reference_details             reference_details[]
-  emergency_contact       emergency_contact?
-  vehicles               vehicles[]
+  wishlists             wishlist[]
+  rental_preference     rental_preference[]
+  housing_details       housing_details?
+  income_sources        income_sources?
+  pets                  pets?
+  reference_details     reference_details?
+  emergency_contact     emergency_contact?
+  vehicles              vehicles?
+  personal_informations personal_informations?
 }
 
 
 model vehicles {
   id            String   @id @default(uuid())
-  tenant_id        String
-  type          String   // Car, Motorcycle, etc.
-  make          String   // Manufacturer (e.g., Honda)
-  model         String   // Model of the vehicle (e.g., Civic)
-  license_plate  String   // Vehicle's license plate
-  car_ownership  String   // Own, Lease, etc.
+  tenant_id     String   @unique
+  type          String // Car, Motorcycle, etc.
+  make          String // Manufacturer (e.g., Honda)
+  model         String // Model of the vehicle (e.g., Civic)
+  license_plate String // Vehicle's license plate
+  car_ownership String // Own, Lease, etc.
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
-
-  tenant        tenants            @relation(fields: [tenant_id], references: [id])
+  tenant tenants @relation(fields: [tenant_id], references: [id])
 }
+
 
 model wishlist {
-  id            String             @id @default(uuid())
-  name          String
-  tenant_id     String
-  tenant        tenants            @relation(fields: [tenant_id], references: [id])
-  created_at    DateTime           @default(now())
-  updated_at    DateTime           @updatedAt
-
-  properties    wishlist_property[]  // <-- Add this relation field
+  id         String              @id @default(uuid())
+  name       String
+  tenant_id  String
+  tenant     tenants             @relation(fields: [tenant_id], references: [id])
+  created_at DateTime            @default(now())
+  updated_at DateTime            @updatedAt
+  properties wishlist_property[] // <-- Add this relation field
 }
+
 
 model wishlist_property {
   wishlist_id           String

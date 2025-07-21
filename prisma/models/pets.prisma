@@ -1,36 +1,21 @@
 model pets {
-  id                     String   @id @default(uuid())
-  tenant_id                String   // Foreign key for the user who owns the pet
-  has_pet                Boolean  // Flag indicating whether the user has a pet
-  pet_type               PetType  // Enum: Dog, Cat, Bird, Hamster, Snake, Other
-  breed_type            String?  // Conditional field: breed type only for specific pets (Dog, Cat, etc.)
-  weight                 String   // Pet's weight in lbs or kg
-  gender                 PetGender // Enum: Male, Female, Unknown
-  is_neutered           Boolean  // Whether the pet is neutered
-  animal_description    String?  // For "Other" pets only
-  additional_pet_id      String?  // ID of the linked pet if this is an additional pet
-  created_at            DateTime @default(now())
-  updated_at            DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  tenant_id          String   @unique
+  has_pet            Boolean // Flag indicating whether the user has a pet
+  pet_type           String // Enum: Dog, Cat, Bird, Hamster, Snake, Other
+  breed_type         String? // Conditional field: breed type only for specific pets (Dog, Cat, etc.)
+  weight             String // Pet's weight in lbs or kg
+  gender             String // Enum: Male, Female, Unknown
+  is_neutered        Boolean // Whether the pet is neutered
+  animal_description String? // For "Other" pets only
+  additional_pet_id  String? // ID of the linked pet if this is an additional pet
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
 
   // Relationships
-  tenant        tenants            @relation(fields: [tenant_id], references: [id])
-  additional_pet pets? @relation("AdditionalPet", fields: [additional_pet_id], references: [id])
-  additional_pets pets[] @relation("AdditionalPet")
+  tenant          tenants @relation(fields: [tenant_id], references: [id])
+  additional_pet  pets?   @relation("AdditionalPet", fields: [additional_pet_id], references: [id])
+  additional_pets pets[]  @relation("AdditionalPet")
 
   // Optional to keep the other pet linked
-}
-
-enum PetType {
-  Dog
-  Cat
-  Bird
-  Hamster
-  Snake
-  Other
-}
-
-enum PetGender {
-  Male
-  Female
-  Unknown
 }

@@ -10,6 +10,7 @@ import { MapModule } from './modules/map/map.module';
 import { PropertiesModule } from './modules/properties/properties.module';
 import { WishlistModule } from './modules/wishlist/wishlist.module';
 import { ZohoModule } from './modules/zoho/zoho.module';
+import { AccountInformationModule } from './modules/account-information/account-information.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { ZohoModule } from './modules/zoho/zoho.module';
     LocationModule,
     ZohoModule,
     WishlistModule,
+    AccountInformationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

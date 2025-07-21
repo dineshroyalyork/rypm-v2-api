@@ -1,14 +1,13 @@
 model vehicles {
   id            String   @id @default(uuid())
-  tenant_id        String
-  type          String   // Car, Motorcycle, etc.
-  make          String   // Manufacturer (e.g., Honda)
-  model         String   // Model of the vehicle (e.g., Civic)
-  license_plate  String   // Vehicle's license plate
-  car_ownership  String   // Own, Lease, etc.
+  tenant_id     String   @unique
+  type          String // Car, Motorcycle, etc.
+  make          String // Manufacturer (e.g., Honda)
+  model         String // Model of the vehicle (e.g., Civic)
+  license_plate String // Vehicle's license plate
+  car_ownership String // Own, Lease, etc.
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
-
-  tenant        tenants            @relation(fields: [tenant_id], references: [id])
+  tenant tenants @relation(fields: [tenant_id], references: [id])
 }

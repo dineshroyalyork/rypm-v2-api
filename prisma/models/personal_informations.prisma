@@ -1,0 +1,18 @@
+model personal_informations {
+  id                      String   @id @default(uuid())
+  tenant_id               String   @unique
+  first_name              String?
+  middle_name             String?
+  sur_name                String?
+  email                   String?
+  mobile_number           String?
+  gender                  String?
+  marital_status          String?
+  credit_score            Int?
+  government_id_name      String?
+  government_id_number    String?
+  social_insurance_number String?
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+  tenant                  tenants  @relation(fields: [tenant_id], references: [id])
+}
