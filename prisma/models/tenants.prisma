@@ -24,4 +24,5 @@ model tenants {
   reference_details             reference_details[]
   emergency_contact       emergency_contact?
   vehicles               vehicles[]
+   bank_details          BankDetails?
 }

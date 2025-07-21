@@ -1,0 +1,18 @@
+model BankDetails {
+  id                    String   @id @default(uuid())   // Unique ID for the bank details
+  tenant_id               String  @unique // Foreign key to link bank details to a user
+  account_holder_name   String   // Full name as it appears on the bank account
+  bank_name             String   // Name of the bank (e.g., Scotiabank)
+  institution_number    String   // 3-digit institution number
+  transit_number        String   // 5-digit transit number
+  account_number        String   // Personal account number (usually 7-12 digits)
+  direct_deposit_form   String?  // File upload for direct deposit form, nullable (can be NULL if not uploaded)
+
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  // Relationships
+  tenant        tenants            @relation(fields: [tenant_id], references: [id])
+
+  // Ensure the relationship with the User model is valid
+}
