@@ -39,7 +39,7 @@ export class LikedController {
     return this.likedService.removeLiked(tenant_id, addLikedDto.property_id);
   }
 
-  @Get('summary')
+  @Get('')
   async getAllLiked(@Req() req: Request) {
     const tenant_id = (req as any).user?.sub || (req as any).user?.id;
     const page_number = req.query.page_number ? parseInt(req.query.page_number as string, 10) : 1;
@@ -47,10 +47,4 @@ export class LikedController {
     return this.likedService.getAllLiked(tenant_id,page_number, page_size);
   }
 
-  @Get()
-  async getLikedSummary(@Req() req: Request) {
-    const tenant_id = (req as any).user?.sub || (req as any).user?.id;
-    const liked = await this.likedService.getLikedSummary(tenant_id);
-    return liked;
-  }
 }
