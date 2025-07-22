@@ -30,6 +30,8 @@ export const sourceOfIncomeSchema = z
         })
       )
       .optional(),
+    // Add this field for linking additional income
+    additional_income_id: z.string().uuid().optional(),
   })
   .superRefine((data, ctx) => {
     // Validate conditional fields based on source of income

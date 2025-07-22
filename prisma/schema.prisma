@@ -7,6 +7,24 @@ datasource db {
   url      = env("DATABASE_URL")
 } 
 
+model bank_details {
+  id                    String   @id @default(uuid())   // Unique ID for the bank details
+  tenant_id               String   @unique // Foreign key to link bank details to a user
+  account_holder_name   String   // Full name as it appears on the bank account
+  bank_name             String   // Name of the bank (e.g., Scotiabank)
+  institution_number    String   // 3-digit institution number
+  transit_number        String   // 5-digit transit number
+  account_number        String   // Personal account number (usually 7-12 digits)
+  direct_deposit_form   String?  // File upload for direct deposit form, nullable (can be NULL if not uploaded)
+
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  // Relationships
+  tenant        tenants  @relation(fields: [tenant_id], references: [id])
+}
+
+
 model buildings {
   id                                   String    @id @default(uuid())
   // Basic Information
@@ -156,6 +174,21 @@ model device_tokens {
   tenant_id    String
   tenant       tenants     @relation(fields: [tenant_id], references: [id])
 } 
+
+model documents {
+  id                String      @id @default(uuid())
+  tenant_id           String    @unique
+  document_type     String
+  sub_type          String?     // e.g. 'Canadian ID', 'Secondary ID', 'TD Bank', etc.
+  document_name     String?     // Optional: Actual file/document name
+  file_url          String      // S3 or file storage link
+  status            String 
+  is_required       Boolean     @default(false)
+  document_for      String // PERSONAL or CORPORATE
+  uploaded_at       DateTime    @default(now())
+
+  tenant        tenants  @relation(fields: [tenant_id], references: [id])
+}
 
 model emergency_contact {
   id            String   @id @default(uuid())
@@ -637,6 +670,8 @@ model tenants {
   emergency_contact     emergency_contact?
   vehicles              vehicles?
   personal_informations personal_informations?
+  bank_details          bank_details?
+  documents             documents?
 }
 
 

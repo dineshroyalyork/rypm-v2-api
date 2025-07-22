@@ -25,4 +25,6 @@ model tenants {
   emergency_contact     emergency_contact?
   vehicles              vehicles?
   personal_informations personal_informations?
+  bank_details          bank_details?
+  documents             documents?
 }

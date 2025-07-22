@@ -1,0 +1,14 @@
+model documents {
+  id                String      @id @default(uuid())
+  tenant_id           String    @unique
+  document_type     String
+  sub_type          String?     // e.g. 'Canadian ID', 'Secondary ID', 'TD Bank', etc.
+  document_name     String?     // Optional: Actual file/document name
+  file_url          String      // S3 or file storage link
+  status            String 
+  is_required       Boolean     @default(false)
+  document_for      String // PERSONAL or CORPORATE
+  uploaded_at       DateTime    @default(now())
+
+  tenant        tenants  @relation(fields: [tenant_id], references: [id])
+}
