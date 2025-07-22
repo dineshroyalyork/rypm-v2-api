@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { personalInformationSchema } from './personal-information.dto';
 import { housingInformationSchema } from './housing-information.dto';
-import { sourceOfIncomeSchema } from './source-of-income.dto';
+import { sourceOfIncomeSchema,sourceOfIncomeArraySchema } from './source-of-income.dto';
 import { referenceDetailsSchema } from './reference-details.dto'
 import { InformationType } from '@/shared/enums/account-details.enum';
-import { petsSchema } from './pets.dto';
+import { petsSchema,petsArraySchema } from './pets.dto';
 import { vehiclesSchema } from './vehicles.dto';
 import { emergencyContactSchema } from './emergency-contact.dto';
 import { bankDetailsSchema } from './bank-details.dto';
@@ -19,8 +19,10 @@ export const accountInformationSchema = z.object({
     personalInformationSchema,
     housingInformationSchema,
     sourceOfIncomeSchema,
+    sourceOfIncomeArraySchema,
     referenceDetailsSchema,
     petsSchema,
+    petsArraySchema,
     vehiclesSchema,
     emergencyContactSchema,
     bankDetailsSchema,

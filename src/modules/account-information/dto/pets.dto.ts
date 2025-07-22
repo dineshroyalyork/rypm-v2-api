@@ -10,4 +10,8 @@ export const petsSchema = z.object({
   animal_description: z.string().optional(),
 });
 
-export type PetsDto = z.infer<typeof petsSchema>; 
+// Updated schema to support an array of pets
+export const petsArraySchema = z.array(petsSchema);
+
+// Updated type for the array of pets
+export type PetsDto = z.infer<typeof petsArraySchema>;

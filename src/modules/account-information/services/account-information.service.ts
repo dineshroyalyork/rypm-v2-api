@@ -2,8 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/shared/prisma/prisma.service';
 import { PersonalInformationDto, CurrentResidenceDto, AccountInformationDto, SourceOfIncomeDto, ReferenceDetailsDto, PetsDto, VehiclesDto, EmergencyContactDto, BankDetailsDto,DocumentsDto } from '../dto/account-information.dto';
 import { documentsSchema } from '../dto/documents.dto';
-
-import { InformationType } from '@/shared/enums/account-details.enum';
+import { InformationType,SourceOfIncome } from '@/shared/enums/account-details.enum';
 
 
 @Injectable()
@@ -22,13 +21,13 @@ export class AccountInformationService {
           return await this.createOrUpdateCurrentResidence(tenant_id, data as CurrentResidenceDto);
 
         case InformationType.SOURCE_OF_INCOME:
-          return await this.createOrUpdateSourceOfIncome(tenant_id, data as SourceOfIncomeDto);
+          return await this.createOrUpdateSourceOfIncome(tenant_id, data as SourceOfIncomeDto[]);
 
         case InformationType.REFERENCES:
           return await this.createOrUpdateReferenceDetails(tenant_id, data as ReferenceDetailsDto);
 
         case InformationType.PETS:
-          return await this.createOrUpdatePets(tenant_id, data as PetsDto);
+          return await this.createOrUpdatePets(tenant_id, data as PetsDto[]);
 
         case InformationType.VEHICLE_INFORMATION:
           return await this.createOrUpdateVehicles(tenant_id, data as VehiclesDto);
@@ -106,32 +105,34 @@ export class AccountInformationService {
     });
   }
 
-  private async createOrUpdateSourceOfIncome(tenant_id: string, data: SourceOfIncomeDto) {
-    const sourceOfIncomeData = {
-      source_of_income: data.source_of_income,
-      employer: data.employer,
-      manager_name: data.manager_name,
-      manager_phone_number: data.manager_phone_number,
-      manager_email: data.manager_email,
-      position_title: data.position_title,
-      occupation: data.occupation,
-      start_date: data.start_date ? new Date(data.start_date) : null,
-      monthly_income: data.monthly_income,
-      // Additional fields can be added based on source_of_income type
-      service_provided: data.source_of_income === 'Self_Employed' ? data.occupation : null,
-      government_program: data.source_of_income === 'Government_Assistance' ? data.employer : null,
-      school_name: data.source_of_income === 'Student_No_Income' || data.source_of_income === 'Student_Supported_By_Parents' ? data.employer : null,
-      additional_income_id: data.additional_income_id,
-    };
-
-    return await this.prisma.income_sources.upsert({
-      where: { tenant_id: tenant_id },
-      update: sourceOfIncomeData,
-      create: {
-        tenant_id: tenant_id,
-        ...sourceOfIncomeData,
-      },
-    });
+  private async createOrUpdateSourceOfIncome(tenant_id: string, data: SourceOfIncomeDto[]) {
+    await this.prisma.income_sources.deleteMany({ where: { tenant_id } });
+  
+    const records = data.map((income) => ({
+      tenant_id,
+      source_of_income: income.source_of_income,
+      employer: income.employer,
+      manager_name: income.manager_name,
+      manager_phone_number: income.manager_phone_number,
+      manager_email: income.manager_email,
+      position_title: income.position_title,
+      occupation: income.occupation,
+      start_date: income.start_date ? new Date(income.start_date) : null,
+      monthly_income: income.monthly_income,
+      service_provided: income.source_of_income === 'Self_Employed' ? income.occupation : null,
+      government_program: income.source_of_income === 'Government_Assistance' ? income.employer : null,
+      school_name:
+        income.source_of_income === SourceOfIncome.STUDENT_NO_INCOME ||
+        income.source_of_income === SourceOfIncome.STUDENT_SUPPORTED_BY_PARENTS
+          ? income.employer
+          : null,
+    }));
+  
+    const createdRecords = await Promise.all(
+      records.map((record) => this.prisma.income_sources.create({ data: record }))
+    );
+  
+    return createdRecords;
   }
 
   private async createOrUpdateReferenceDetails(tenant_id: string, data: ReferenceDetailsDto) {
@@ -152,27 +153,31 @@ export class AccountInformationService {
       },
     });
   }
-
-  private async createOrUpdatePets(tenant_id: string, data: PetsDto) {
-    const petsData = {
-      has_pet: data.has_pet,
-      pet_type: data.pet_type,
-      breed_type: data.breed_type,
-      weight: data.weight,
-      gender: data.gender,
-      is_neutered: data.is_neutered,
-      animal_description: data.animal_description,
-    };
-
-    return await this.prisma.pets.upsert({
-      where: { tenant_id: tenant_id },
-      update: petsData,
-      create: {
-        tenant_id: tenant_id,
-        ...petsData,
-      },
+  private async createOrUpdatePets(tenant_id: string, data: PetsDto[]) {
+    // Step 1: Remove existing pets for the tenant
+    await this.prisma.pets.deleteMany({ where: { tenant_id } });
+  
+    // Step 2: Map incoming array to DB-compatible format
+    const petsToCreate = data.map((pet) => ({
+      tenant_id,
+      has_pet: pet.has_pet,
+      pet_type: pet.pet_type,
+      breed_type: pet.breed_type,
+      weight: pet.weight,
+      gender: pet.gender,
+      is_neutered: pet.is_neutered,
+      animal_description: pet.animal_description,
+    }));
+  
+    // Step 3: Create all new pets
+    await this.prisma.pets.createMany({
+      data: petsToCreate,
     });
+  
+    // Step 4: Return the newly inserted records
+    return await this.prisma.pets.findMany({ where: { tenant_id } });
   }
+  
 
   private async createOrUpdateVehicles(tenant_id: string, data: VehiclesDto) {
     const vehiclesData = {
@@ -330,19 +335,13 @@ export class AccountInformationService {
   }
 
   private async getSourceOfIncome(tenant_id: string) {
-    const incomeInfo = await this.prisma.income_sources.findFirst({
-      where: { tenant_id: tenant_id },
-      include: {
-        additional_income_sources: true, // <-- Add this line
-      },
+    const incomeInfos = await this.prisma.income_sources.findMany({
+      where: { tenant_id },
     });
-
-    if (!incomeInfo) {
-      throw new NotFoundException('Source of income information not found');
-    }
-
-    return incomeInfo;
+  
+    return incomeInfos ?? []; // fallback to empty array
   }
+  
 
   private async getReferenceDetails(tenant_id: string) {
     const reference = await this.prisma.reference_details.findUnique({
@@ -357,11 +356,11 @@ export class AccountInformationService {
   }
 
   private async getPets(tenant_id: string) {
-    const pets = await this.prisma.pets.findUnique({
+    const pets = await this.prisma.pets.findMany({
       where: { tenant_id: tenant_id },
     });
 
-    if (!pets) {
+    if (!pets || pets.length === 0) {
       throw new NotFoundException('Pets information not found');
     }
 
@@ -417,20 +416,20 @@ export class AccountInformationService {
   }
 
   private async getAllAccountInformation(tenant_id: string) {
-    const [personalInfo, housingInfo, incomeInfo, referenceInfo, petsInfo, vehiclesInfo, emergencyContactInfo, bankDetailsInfo, documentsInfo] = await Promise.all([
+    const [personalInfo, housingInfo, incomeInfos, referenceInfo, petsInfos, vehiclesInfo, emergencyContactInfo, bankDetailsInfo, documentsInfo] = await Promise.all([
       this.prisma.personal_informations.findUnique({
         where: { tenant_id: tenant_id },
       }),
       this.prisma.housing_details.findUnique({
         where: { tenant_id: tenant_id },
       }),
-      this.prisma.income_sources.findFirst({
+      this.prisma.income_sources.findMany({
         where: { tenant_id: tenant_id },
       }),
       this.prisma.reference_details.findUnique({
         where: { tenant_id: tenant_id },
       }),
-      this.prisma.pets.findUnique({
+      this.prisma.pets.findMany({
         where: { tenant_id: tenant_id },
       }),
       this.prisma.vehicles.findUnique({
@@ -450,9 +449,9 @@ export class AccountInformationService {
     return {
       personal_information: personalInfo,
       current_residence: housingInfo,
-      source_of_income: incomeInfo,
+      source_of_income: incomeInfos,
       references: referenceInfo,
-      pets: petsInfo,
+      pets: petsInfos,
       vehicles: vehiclesInfo,
       emergency_contact: emergencyContactInfo,
       bank_details: bankDetailsInfo,

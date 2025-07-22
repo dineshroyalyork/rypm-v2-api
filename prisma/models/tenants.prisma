@@ -19,8 +19,8 @@ model tenants {
   wishlists             wishlist[]
   rental_preference     rental_preference[]
   housing_details       housing_details?
-  income_sources        income_sources?
-  pets                  pets?
+  income_sources        income_sources[]
+  pets                  pets[]
   reference_details     reference_details?
   emergency_contact     emergency_contact?
   vehicles              vehicles?

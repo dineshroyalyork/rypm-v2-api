@@ -641,8 +641,7 @@ export class PropertiesService {
         property_details: {
           select: {
             marketed_price: true,
-            number_of_parking_spaces: true
-            
+            number_of_parking_spaces: true  
           },
         },
       },
@@ -720,7 +719,6 @@ export class PropertiesService {
         property_details: {
           select: {
             marketed_price: true,
-
             earliest_move_in_date: true,
             hot_water_tank_provider: true,
             refrigerator_manufacture: true,
