@@ -93,6 +93,7 @@ export class LikedService {
         bathrooms: true,
         latitude: true,
         longitude: true,
+        property_image: true,
         property_details: {
           select: {
             marketed_price: true,
@@ -119,29 +120,4 @@ export class LikedService {
     };
   }
 
-  async getLikedSummary(tenant_id: string) {
-    const liked = await this.prisma.liked.findUnique({
-      where: { tenant_id },
-      select: { id: true, property_ids: true },
-    });
-
-    if (!liked) {
-      return {
-        statusCode: 200,
-        success: true,
-        message: 'No liked list found for tenant',
-        data: { id: null, count: 0 },
-      };
-    }
-
-    return {
-      statusCode: 200,
-      success: true,
-      message: 'Liked details retrieved successfully',
-      data: {
-        id: liked.id,
-        count: liked.property_ids.length,
-      },
-    };
-  }
 }

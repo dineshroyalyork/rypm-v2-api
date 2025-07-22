@@ -375,6 +375,7 @@ model properties {
   appliance_finishes            String?
   new_ice_maker                 Boolean?
   upgraded_back_splash          Boolean?
+  property_image                String?
 
   // Appliance Brands - Kitchen
   refrigerator_manufacture     String?
@@ -696,6 +697,6 @@ model wishlist_property {
 
   wishlist              wishlist @relation(fields: [wishlist_id], references: [id])
   properties              properties @relation(fields: [property_id], references: [id])
-
+  created_at   DateTime @default(now())
   @@id([wishlist_id, property_id])
 }

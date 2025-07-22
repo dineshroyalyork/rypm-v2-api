@@ -31,6 +31,29 @@ export class WishlistService {
   }
 
   async getTenantWishlists(tenant_id: string) {
+    const liked = await this.prisma.liked.findUnique({
+      where: { tenant_id },
+      select: {
+        id: true,
+        tenant_id: true,
+        property_ids: true,
+      },
+    });
+
+    let likedProperties: string[] = [];
+    if (liked && liked.property_ids.length > 0) {
+      // Fetch the latest 4 properties by id, sorted by created_at descending
+      const properties = await this.prisma.properties.findMany({
+        where: { id: { in: liked.property_ids } },
+        orderBy: { created_at: 'desc' },
+        select: { property_image: true, id: true, created_at: true },
+      });
+
+      // Sort the properties in the order of most recent (if not already sorted)
+      // Take the first 4 and map to their names
+      likedProperties = properties.slice(0, 4).map((p) => p.property_image).filter((property_image): property_image is string => !!property_image);
+    }
+
     const wishlists = await this.prisma.wishlist.findMany({
       where: { tenant_id },
       include: {
@@ -40,15 +63,52 @@ export class WishlistService {
       },
     });
 
+    const wishlistsWithProperties = await Promise.all(
+      wishlists.map(async (w) => {
+        // Get the property IDs for this wishlist (from the join table)
+        const wishlistProperties = await this.prisma.wishlist_property.findMany({
+          where: { wishlist_id: w.id },
+          orderBy: { created_at: 'desc' },
+          select: { property_id: true },
+          take: 4,
+        });
+
+        const propertyIds = wishlistProperties.map((wp) => wp.property_id);
+
+        // Fetch property names
+        let properties: string[] = [];
+        if (propertyIds.length > 0) {
+          const props = await this.prisma.properties.findMany({
+            where: { id: { in: propertyIds } },
+            select: { property_image: true },
+          });
+          properties = props.map((p) => p.property_image).filter((property_image): property_image is string => !!property_image);
+        }
+
+        return {
+          id: w.id,
+          name: w.name,
+          count: w._count.properties,
+          properties,
+        };
+      })
+    );
+
+    const result: Array<{ id: string; name: string; count: number; properties?: string[] }> = [];
+    result.push({
+      id: liked ? liked.id : '',
+      name: 'Liked',
+      count: liked ? liked.property_ids.length : 0,
+      properties: likedProperties,
+    });
+
+    result.push(...wishlistsWithProperties);
+
     return {
       statusCode: 200,
       success: true,
       message: 'Wishlist list fetched successfully',
-      data: wishlists.map((w) => ({
-        id: w.id,
-        name: w.name,
-        count: w._count.properties,
-      })),
+      data: result,
     };
   }
 
