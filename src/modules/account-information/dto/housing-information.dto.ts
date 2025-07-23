@@ -12,8 +12,8 @@ export const housingInformationSchema = z
     country: z.string().min(1, 'Country is required').max(50, 'Country must be less than 50 characters'),
 
     // Housing status
-    housing_status: z.nativeEnum(HousingStatus, {
-      required_error: 'Please select your housing status',
+    housing_status: z.nativeEnum(HousingStatus).refine(val => val !== undefined, {
+      message: 'Please select your housing status',
     }),
     living_since: z.string().optional(),
 

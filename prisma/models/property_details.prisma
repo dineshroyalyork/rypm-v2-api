@@ -2,7 +2,7 @@ model property_details {
   id                                             String     @id @default(uuid())
   // Relation to property
   property_id                                    String     @unique
-  properties                                       properties @relation(fields: [property_id], references: [id], onDelete: Cascade)
+  properties                                     properties @relation(fields: [property_id], references: [id], onDelete: Cascade)
   // All remaining fields from JSON object (not in Unit Features screen)
   owner                                          Json?
   tenant_prospect_marketed_price_multiplied      Int?
@@ -140,7 +140,6 @@ model property_details {
   tennis_court                                   Boolean?
   hydro_provider                                 String?
   last_month_rent_deposit                        Float?
-  marketed_price                                 Int?
   rypm_website                                   String?
   property_condition                             String?
   microwave_manufacture                          String?
@@ -159,7 +158,6 @@ model property_details {
   kijiji                                         Boolean?
   retainer_balance                               Float?
   facebook                                       String?
-  ventilation_hood_manufacture                   String?
   date_unpublished                               DateTime?
   duct_cleaninga                                 Boolean?
   media                                          String?

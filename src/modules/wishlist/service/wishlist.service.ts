@@ -14,10 +14,7 @@ export class WishlistService {
       where: { tenant_id, name: dto.name },
     });
     if (existing) {
-      throw new HttpException(
-        'You cannot create a wishlist with the same name',
-        400,
-      );
+      throw new HttpException('You cannot create a wishlist with the same name', 400);
     }
     const wishlist = await this.prisma.wishlist.create({
       data: { name: dto.name, tenant_id },
@@ -46,12 +43,15 @@ export class WishlistService {
       const properties = await this.prisma.properties.findMany({
         where: { id: { in: liked.property_ids } },
         orderBy: { created_at: 'desc' },
-        select: { property_image: true, id: true, created_at: true },
+        select: { thumbnail_image: true, id: true, created_at: true },
       });
 
       // Sort the properties in the order of most recent (if not already sorted)
       // Take the first 4 and map to their names
-      likedProperties = properties.slice(0, 4).map((p) => p.property_image).filter((property_image): property_image is string => !!property_image);
+      likedProperties = properties
+        .slice(0, 4)
+        .map(p => p.thumbnail_image)
+        .filter((thumbnail_image): thumbnail_image is string => !!thumbnail_image);
     }
 
     const wishlists = await this.prisma.wishlist.findMany({
@@ -64,7 +64,7 @@ export class WishlistService {
     });
 
     const wishlistsWithProperties = await Promise.all(
-      wishlists.map(async (w) => {
+      wishlists.map(async w => {
         // Get the property IDs for this wishlist (from the join table)
         const wishlistProperties = await this.prisma.wishlist_property.findMany({
           where: { wishlist_id: w.id },
@@ -73,16 +73,16 @@ export class WishlistService {
           take: 4,
         });
 
-        const propertyIds = wishlistProperties.map((wp) => wp.property_id);
+        const propertyIds = wishlistProperties.map(wp => wp.property_id);
 
         // Fetch property names
         let properties: string[] = [];
         if (propertyIds.length > 0) {
           const props = await this.prisma.properties.findMany({
             where: { id: { in: propertyIds } },
-            select: { property_image: true },
+            select: { thumbnail_image: true },
           });
-          properties = props.map((p) => p.property_image).filter((property_image): property_image is string => !!property_image);
+          properties = props.map(p => p.thumbnail_image).filter((thumbnail_image): thumbnail_image is string => !!thumbnail_image);
         }
 
         return {
@@ -151,10 +151,7 @@ export class WishlistService {
     };
   }
 
-  async removePropertiesFromWishlist(
-    wishlist_id: string,
-    property_ids: string[],
-  ) {
+  async removePropertiesFromWishlist(wishlist_id: string, property_ids: string[]) {
     const wishlist = await this.prisma.wishlist.findUnique({
       where: { id: wishlist_id },
     });
@@ -270,12 +267,7 @@ export class WishlistService {
                 bedrooms: true,
                 latitude: true,
                 longitude: true,
-                property_details: {
-                  select: {
-                    marketed_price: true,
-
-                  },
-                },
+                marketed_price: true,
               },
             },
           },
@@ -286,7 +278,7 @@ export class WishlistService {
     if (!wishlist) throw new HttpException('Wishlist not found', 404);
 
     // Flatten property info for easier consumption
-    const allProperties = wishlist.properties.map((wp) => wp.properties);
+    const allProperties = wishlist.properties.map(wp => wp.properties);
     const paginated = paginateArray(allProperties, page_number, page_size);
 
     return {
