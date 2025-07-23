@@ -596,11 +596,10 @@ export class PropertiesService {
         where.property_details.number_of_parking_spaces = { gt: 0 };
       }
       if (min_price || max_price) {
-        if (!where.property_details) where.property_details = {};
-        where.property_details.marketed_price = {};
-        if (min_price) where.property_details.marketed_price.gte = Number(min_price);
-        if (max_price) where.property_details.marketed_price.lte = Number(max_price);
-      }
+        where.marketed_price = {};
+        if (min_price) where.marketed_price.gte = Number(min_price);
+        if (max_price) where.marketed_price.lte = Number(max_price);
+      }  
       if (property_type) {
         where.buildings = { property_type };
       }
