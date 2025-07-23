@@ -646,25 +646,29 @@ export class PropertiesService {
       // }
     }
 
-    const allProperties = await this.prisma.properties.findMany({
-      where,
+    const skip = (page_number - 1) * page_size;
+const take = page_size;
+const allProperties = await this.prisma.properties.findMany({
+  where,
+  skip,
+  take,
+  select: {
+    id: true,
+    name: true,
+    bedrooms: true,
+    bathrooms: true,
+    updated_at: true,
+    latitude: true,
+    longitude: true,
+    marketed_price: true,
+    thumbnail_image: true,
+    property_details: {
       select: {
-        id: true,
-        name: true,
-        bedrooms: true,
-        bathrooms: true,
-        updated_at: true,
-        latitude: true,
-        longitude: true,
-        marketed_price: true,
-        thumbnail_image: true,
-        property_details: {
-          select: {
-            number_of_parking_spaces: true,
-          },
-        },
+        number_of_parking_spaces: true,
       },
-    });
+    },
+  },
+});
 
     const paginated = paginateArray(allProperties, page_number, page_size);
 
@@ -696,9 +700,9 @@ export class PropertiesService {
       success: true,
       message: 'Properties fetched successfully',
       data: dataWithLiked,
-      total_count: paginated.total_count,
-      page_number: paginated.page_number,
-      page_size: paginated.page_size,
+      // total_count,
+      page_number,
+      page_size,
     };
   }
 
