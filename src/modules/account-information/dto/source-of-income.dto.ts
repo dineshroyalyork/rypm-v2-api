@@ -6,8 +6,8 @@ import { SourceOfIncome } from '@/shared/enums/account-details.enum';
  */
 export const sourceOfIncomeSchema = z
   .object({
-    source_of_income: z.nativeEnum(SourceOfIncome, {
-      required_error: 'Please select your source of income',
+    source_of_income: z.nativeEnum(SourceOfIncome).refine(val => val !== undefined, {
+      message: 'Please select your source of income',
     }),
     employer: z.string().optional(),
     occupation: z.string().optional(),
