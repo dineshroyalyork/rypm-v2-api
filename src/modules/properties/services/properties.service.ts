@@ -647,63 +647,71 @@ export class PropertiesService {
     }
 
     const skip = (page_number - 1) * page_size;
-const take = page_size;
-const allProperties = await this.prisma.properties.findMany({
-  where,
-  skip,
-  take,
-  select: {
-    id: true,
-    name: true,
-    bedrooms: true,
-    bathrooms: true,
-    updated_at: true,
-    latitude: true,
-    longitude: true,
-    marketed_price: true,
-    thumbnail_image: true,
-    property_details: {
-      select: {
-        number_of_parking_spaces: true,
-      },
-    },
-  },
-});
-
-    const paginated = paginateArray(allProperties, page_number, page_size);
-
-    // Mark new properties
+    const take = page_size;
+    
+    // Mark new property threshold
     const lastWeek = new Date();
     lastWeek.setDate(lastWeek.getDate() - 7);
-
-    let dataWithLiked = paginated.data;
+    
+    // Fetch total count for pagination metadata
+    const total_count = await this.prisma.properties.count({ where });
+    
+    // Fetch paginated properties
+    const allProperties = await this.prisma.properties.findMany({
+      where,
+      skip,
+      take,
+      select: {
+        id: true,
+        name: true,
+        bedrooms: true,
+        bathrooms: true,
+        updated_at: true,
+        latitude: true,
+        longitude: true,
+        marketed_price: true,
+        thumbnail_image: true,
+        property_details: {
+          select: {
+            number_of_parking_spaces: true,
+          },
+        },
+      },
+    });
+    
+    let dataWithLiked = allProperties;
+    
+    // If tenant_id exists, mark liked properties
     if (tenant_id) {
       const liked = await this.prisma.liked.findUnique({
         where: { tenant_id },
         select: { property_ids: true },
       });
+    
       const likedIds = liked ? new Set(liked.property_ids) : new Set();
-      dataWithLiked = paginated.data.map(prop => ({
+    
+      dataWithLiked = allProperties.map(prop => ({
         ...prop,
         liked: likedIds.has(prop.id),
         is_new_property: new Date(prop.updated_at) >= lastWeek,
       }));
     } else {
-      dataWithLiked = paginated.data.map(prop => ({
+      dataWithLiked = allProperties.map(prop => ({
         ...prop,
         is_new_property: new Date(prop.updated_at) >= lastWeek,
       }));
     }
-
+    
     return {
       statusCode: 200,
       success: true,
       message: 'Properties fetched successfully',
       data: dataWithLiked,
-      // total_count,
+      total_count,
       page_number,
       page_size,
     };
+    
   }
 
   async getPropertyById(property_id: string, tenant_id?: string) {
