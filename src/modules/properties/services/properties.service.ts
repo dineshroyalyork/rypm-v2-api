@@ -558,16 +558,18 @@ export class PropertiesService {
     bathrooms?: string,
     parking?: string,
     min_price?: string,
-    max_price?: string
+    max_price?: string,
+    property_type?: string
   ) {
     let where: any = {};
     if (tenant_id) {
-      // Check for rental preference only if tenant_id is defined
       const rentalPref = await this.prisma.rental_preference.findUnique({
         where: { tenant_id },
       });
+
       if (rentalPref) {
         where = {
+          ...where,
           bedrooms: rentalPref.bedrooms,
           bathrooms: rentalPref.bathrooms,
           property_details: {
@@ -575,37 +577,32 @@ export class PropertiesService {
               gte: rentalPref.price_min,
               lte: rentalPref.price_max,
             },
-            ...(rentalPref.parking && rentalPref.parking.toLowerCase() === 'yes' ? { number_of_parking_spaces: { gt: 0 } } : {}),
+            ...(rentalPref.parking?.toLowerCase() === 'yes' ? { number_of_parking_spaces: { gt: 0 } } : {}),
           },
+          ...(property_type && {
+            buildings: {
+              property_type: rentalPref.property_type,
+            },
+          }),
         };
       }
     } else {
-      // Only apply these filters if unauthenticated (tenant_id is not present)
-      if (bedrooms) {
-        where.bedrooms = bedrooms;
-      }
-      if (bathrooms) {
-        where.bathrooms = bathrooms;
-      }
-      if (search) {
-        where.name = { contains: search, mode: 'insensitive' };
-      }
-      // Parking filter: if 'yes', require at least 1 parking space
-      if (parking && parking.toLowerCase() === 'yes') {
-        if (!where.property_details) {
-          where.property_details = {};
-        }
+      // Only apply filters if unauthenticated
+      if (bedrooms) where.bedrooms = bedrooms;
+      if (bathrooms) where.bathrooms = bathrooms;
+      if (search) where.name = { contains: search, mode: 'insensitive' };
+      if (parking?.toLowerCase() === 'yes') {
+        if (!where.property_details) where.property_details = {};
         where.property_details.number_of_parking_spaces = { gt: 0 };
       }
-      // Price range filter
       if (min_price || max_price) {
-        where.property_details = { marketed_price: {} };
-        if (min_price) {
-          where.property_details.marketed_price.gte = Number(min_price);
-        }
-        if (max_price) {
-          where.property_details.marketed_price.lte = Number(max_price);
-        }
+        if (!where.property_details) where.property_details = {};
+        where.property_details.marketed_price = {};
+        if (min_price) where.property_details.marketed_price.gte = Number(min_price);
+        if (max_price) where.property_details.marketed_price.lte = Number(max_price);
+      }
+      if (property_type) {
+        where.buildings = { property_type };
       }
     }
 
@@ -627,28 +624,26 @@ export class PropertiesService {
         },
       },
     });
+
     const paginated = paginateArray(allProperties, page_number, page_size);
 
-    // Calculate last week's date
+    // Mark new properties
     const lastWeek = new Date();
     lastWeek.setDate(lastWeek.getDate() - 7);
 
     let dataWithLiked = paginated.data;
     if (tenant_id) {
-      // Fetch liked property IDs for this tenant
       const liked = await this.prisma.liked.findUnique({
         where: { tenant_id },
         select: { property_ids: true },
       });
       const likedIds = liked ? new Set(liked.property_ids) : new Set();
-      // Add liked: true/false and is_new_property to each property
       dataWithLiked = paginated.data.map(prop => ({
         ...prop,
         liked: likedIds.has(prop.id),
         is_new_property: new Date(prop.updated_at) >= lastWeek,
       }));
     } else {
-      // Add is_new_property to each property
       dataWithLiked = paginated.data.map(prop => ({
         ...prop,
         is_new_property: new Date(prop.updated_at) >= lastWeek,

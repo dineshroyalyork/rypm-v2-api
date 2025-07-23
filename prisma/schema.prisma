@@ -7,6 +7,24 @@ datasource db {
   url      = env("DATABASE_URL")
 } 
 
+model bank_details {
+  id                    String   @id @default(uuid())   // Unique ID for the bank details
+  tenant_id               String   @unique // Foreign key to link bank details to a user
+  account_holder_name   String   // Full name as it appears on the bank account
+  bank_name             String   // Name of the bank (e.g., Scotiabank)
+  institution_number    String   // 3-digit institution number
+  transit_number        String   // 5-digit transit number
+  account_number        String   // Personal account number (usually 7-12 digits)
+  direct_deposit_form   String?  // File upload for direct deposit form, nullable (can be NULL if not uploaded)
+
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  // Relationships
+  tenant        tenants  @relation(fields: [tenant_id], references: [id])
+}
+
+
 model buildings {
   id                                   String    @id @default(uuid())
   // Basic Information
@@ -157,6 +175,21 @@ model device_tokens {
   tenant       tenants     @relation(fields: [tenant_id], references: [id])
 } 
 
+model documents {
+  id                String      @id @default(uuid())
+  tenant_id           String    @unique
+  document_type     String
+  sub_type          String?     // e.g. 'Canadian ID', 'Secondary ID', 'TD Bank', etc.
+  document_name     String?     // Optional: Actual file/document name
+  file_url          String      // S3 or file storage link
+  status            String 
+  is_required       Boolean     @default(false)
+  document_for      String // PERSONAL or CORPORATE
+  uploaded_at       DateTime    @default(now())
+
+  tenant        tenants  @relation(fields: [tenant_id], references: [id])
+}
+
 model emergency_contact {
   id            String   @id @default(uuid())
   tenant_id        String @unique
@@ -205,32 +238,27 @@ model housing_details {
 
 
 model income_sources {
-  id                         String           @id @default(uuid())
-  tenant_id                  String           @unique
-  source_of_income           String
-  // Employed
-  employer                   String? // Only if Employed
-  manager_name               String? // Only if Employed
-  manager_phone_number       String? // Only if Employed
-  manager_email              String? // Only if Employed
-  position_title             String? // Only if Employed
-  occupation                 String? // New: Occupation field for Employed
-  start_date                 DateTime? // Only if Employed
-  monthly_income             Int? // Common for all
-  // Self Employed
-  service_provided           String? // Only if Self Employed
-  // Government Assistance
-  government_program         String? // Only if Government Assistance (e.g., Ontario Child Benefit)
-  // Student (No Income / Supported by Parents or OSAP)
-  school_name                String? // Only if Student (No Income or Supported by Parents)
-  additional_income_id       String? // Self-referencing foreign key for additional income
-  additional_income_relation income_sources?  @relation("AdditionalIncome", fields: [additional_income_id], references: [id])
-  additional_income_sources  income_sources[] @relation("AdditionalIncome")
-  created_at                 DateTime         @default(now())
-  updated_at                 DateTime         @updatedAt
-  tenant                     tenants          @relation(fields: [tenant_id], references: [id])
-}
+  id                   String   @id @default(uuid())
+  tenant_id            String
+  source_of_income     String
+  employer             String?
+  manager_name         String?
+  manager_phone_number String?
+  manager_email        String?
+  position_title       String?
+  occupation           String?
+  start_date           DateTime?
+  monthly_income       Int?
+  service_provided     String?
+  government_program   String?
+  school_name          String?
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
 
+  tenant tenants @relation(fields: [tenant_id], references: [id])
+
+  @@index([tenant_id]) // optional but useful
+}
 
 model Liked {
   id          String   @id @default(uuid())
@@ -284,7 +312,7 @@ model personal_informations {
 
 model pets {
   id                 String   @id @default(uuid())
-  tenant_id          String   @unique
+  tenant_id          String
   has_pet            Boolean // Flag indicating whether the user has a pet
   pet_type           String // Enum: Dog, Cat, Bird, Hamster, Snake, Other
   breed_type         String? // Conditional field: breed type only for specific pets (Dog, Cat, etc.)
@@ -292,16 +320,10 @@ model pets {
   gender             String // Enum: Male, Female, Unknown
   is_neutered        Boolean // Whether the pet is neutered
   animal_description String? // For "Other" pets only
-  additional_pet_id  String? // ID of the linked pet if this is an additional pet
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
 
-  // Relationships
   tenant          tenants @relation(fields: [tenant_id], references: [id])
-  additional_pet  pets?   @relation("AdditionalPet", fields: [additional_pet_id], references: [id])
-  additional_pets pets[]  @relation("AdditionalPet")
-
-  // Optional to keep the other pet linked
 }
 
 
@@ -354,6 +376,7 @@ model properties {
   appliance_finishes            String?
   new_ice_maker                 Boolean?
   upgraded_back_splash          Boolean?
+  property_image                String?
 
   // Appliance Brands - Kitchen
   refrigerator_manufacture     String?
@@ -631,12 +654,14 @@ model tenants {
   wishlists             wishlist[]
   rental_preference     rental_preference[]
   housing_details       housing_details?
-  income_sources        income_sources?
-  pets                  pets?
+  income_sources        income_sources[]
+  pets                  pets[]
   reference_details     reference_details?
   emergency_contact     emergency_contact?
   vehicles              vehicles?
   personal_informations personal_informations?
+  bank_details          bank_details?
+  documents             documents?
 }
 
 
@@ -687,6 +712,6 @@ model wishlist_property {
 
   wishlist              wishlist @relation(fields: [wishlist_id], references: [id])
   properties              properties @relation(fields: [property_id], references: [id])
-
+  created_at   DateTime @default(now())
   @@id([wishlist_id, property_id])
 }

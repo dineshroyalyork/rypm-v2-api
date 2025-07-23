@@ -1,97 +1,65 @@
 import { z } from 'zod';
 import { SourceOfIncome } from '@/shared/enums/account-details.enum';
 
+/**
+ * Schema for a single source of income (keep this)
+ */
 export const sourceOfIncomeSchema = z
   .object({
-    // Source of income type
     source_of_income: z.nativeEnum(SourceOfIncome, {
       required_error: 'Please select your source of income',
     }),
-
-    // Employment details (conditional based on source of income)
     employer: z.string().optional(),
     occupation: z.string().optional(),
     position_title: z.string().optional(),
     start_date: z.string().optional(),
     monthly_income: z.number().positive('Monthly income must be positive').optional(),
-
-    // Manager/Contact details (for employed status)
     manager_name: z.string().optional(),
     manager_phone_number: z.string().optional(),
     manager_email: z.string().email('Please enter a valid email address').optional(),
-
-    // Additional income sources (for government assistance, etc.)
-    additional_income_sources: z
-      .array(
-        z.object({
-          source_name: z.string().min(1, 'Source name is required'),
-          amount: z.number().positive('Amount must be positive'),
-          frequency: z.enum(['monthly', 'yearly', 'one_time']),
-        })
-      )
-      .optional(),
   })
   .superRefine((data, ctx) => {
-    // Validate conditional fields based on source of income
+    const addError = (path: string[], message: string) => {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message, path });
+    };
+
     switch (data.source_of_income) {
       case SourceOfIncome.EMPLOYED:
         if (!data.employer || !data.occupation || !data.position_title || !data.start_date || !data.monthly_income) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'Employer, occupation, position, start date, and monthly income are required for employed status',
-            path: ['employer'],
-          });
+          addError(['employer'], 'Employer, occupation, position title, start date, and monthly income are required for employed status');
         }
         if (!data.manager_name || !data.manager_phone_number || !data.manager_email) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'Manager details are required for employed status',
-            path: ['manager_name'],
-          });
+          addError(['manager_name'], 'Manager details are required for employed status');
         }
         break;
 
       case SourceOfIncome.SELF_EMPLOYED:
         if (!data.occupation || !data.start_date || !data.monthly_income) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'Occupation, start date, and monthly income are required for self-employed status',
-            path: ['occupation'],
-          });
+          addError(['occupation'], 'Occupation, start date, and income required for self-employed');
         }
         break;
 
       case SourceOfIncome.GOVERNMENT_ASSISTANCE:
+      case SourceOfIncome.STUDENT_SUPPORTED_BY_PARENTS:
         if (!data.monthly_income) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'Monthly income is required for government assistance status',
-            path: ['monthly_income'],
-          });
+          addError(['monthly_income'], 'Monthly income is required');
         }
         break;
 
       case SourceOfIncome.STUDENT_NO_INCOME:
-        // No additional validation needed for students with no income
-        break;
-
-      case SourceOfIncome.STUDENT_SUPPORTED_BY_PARENTS:
-        if (!data.monthly_income) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'Monthly support amount is required for students supported by parents',
-            path: ['monthly_income'],
-          });
-        }
         break;
 
       default:
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Invalid source of income selected',
-          path: ['source_of_income'],
-        });
+        addError(['source_of_income'], 'Invalid source of income');
     }
   });
 
-export type SourceOfIncomeDto = z.infer<typeof sourceOfIncomeSchema>;
+/**
+ * ✅ This is the NEW schema for the array of incomes
+ */
+export const sourceOfIncomeArraySchema = z.array(sourceOfIncomeSchema);
+
+/**
+ * ✅ Update type to reflect an array
+ */
+export type SourceOfIncomeDto = z.infer<typeof sourceOfIncomeArraySchema>;
