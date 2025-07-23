@@ -52,9 +52,7 @@ export class LikedService {
       };
     }
 
-    const updatedPropertyIds = liked.property_ids.filter(
-      (id) => id !== property_id,
-    );
+    const updatedPropertyIds = liked.property_ids.filter(id => id !== property_id);
 
     await this.prisma.liked.update({
       where: { tenant_id },
@@ -93,12 +91,7 @@ export class LikedService {
         bathrooms: true,
         latitude: true,
         longitude: true,
-        property_details: {
-          select: {
-            marketed_price: true,
-
-          },
-        },
+        marketed_price: true,
       },
     });
 

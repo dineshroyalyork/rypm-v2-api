@@ -12,6 +12,7 @@ model properties {
   city                          String?
   address                       String?
   associated_building           Json?
+  marketed_price                Int?
   // Common Area Features
   fireplace                     Boolean?
   window_coverings              String?
@@ -61,9 +62,9 @@ model properties {
   // Laundry Features
   washer_dryer_in_unit         Boolean?
   // Timestamps
-  created_at                   DateTime          @default(now())
-  updated_at                   DateTime          @default(now()) @updatedAt
+  created_at                   DateTime            @default(now())
+  updated_at                   DateTime            @default(now()) @updatedAt
   // Relations
   property_details             property_details?
-  wishlist_property  wishlist_property[]
+  wishlist_property            wishlist_property[]
 }

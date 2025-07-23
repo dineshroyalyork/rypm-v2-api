@@ -14,10 +14,7 @@ export class WishlistService {
       where: { tenant_id, name: dto.name },
     });
     if (existing) {
-      throw new HttpException(
-        'You cannot create a wishlist with the same name',
-        400,
-      );
+      throw new HttpException('You cannot create a wishlist with the same name', 400);
     }
     const wishlist = await this.prisma.wishlist.create({
       data: { name: dto.name, tenant_id },
@@ -44,7 +41,7 @@ export class WishlistService {
       statusCode: 200,
       success: true,
       message: 'Wishlist list fetched successfully',
-      data: wishlists.map((w) => ({
+      data: wishlists.map(w => ({
         id: w.id,
         name: w.name,
         count: w._count.properties,
@@ -91,10 +88,7 @@ export class WishlistService {
     };
   }
 
-  async removePropertiesFromWishlist(
-    wishlist_id: string,
-    property_ids: string[],
-  ) {
+  async removePropertiesFromWishlist(wishlist_id: string, property_ids: string[]) {
     const wishlist = await this.prisma.wishlist.findUnique({
       where: { id: wishlist_id },
     });
@@ -210,12 +204,7 @@ export class WishlistService {
                 bedrooms: true,
                 latitude: true,
                 longitude: true,
-                property_details: {
-                  select: {
-                    marketed_price: true,
-
-                  },
-                },
+                marketed_price: true,
               },
             },
           },
@@ -226,7 +215,7 @@ export class WishlistService {
     if (!wishlist) throw new HttpException('Wishlist not found', 404);
 
     // Flatten property info for easier consumption
-    const allProperties = wishlist.properties.map((wp) => wp.properties);
+    const allProperties = wishlist.properties.map(wp => wp.properties);
     const paginated = paginateArray(allProperties, page_number, page_size);
 
     return {

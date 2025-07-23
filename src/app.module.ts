@@ -11,6 +11,7 @@ import { PropertiesModule } from './modules/properties/properties.module';
 import { WishlistModule } from './modules/wishlist/wishlist.module';
 import { ZohoModule } from './modules/zoho/zoho.module';
 import { AccountInformationModule } from './modules/account-information/account-information.module';
+import { TourSchedulingModule } from './modules/tour-scheduling/tour-scheduling.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { AccountInformationModule } from './modules/account-information/account-
     ZohoModule,
     WishlistModule,
     AccountInformationModule,
+    TourSchedulingModule,
   ],
   controllers: [AppController],
   providers: [AppService],
