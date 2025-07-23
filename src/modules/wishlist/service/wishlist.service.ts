@@ -43,15 +43,15 @@ export class WishlistService {
       const properties = await this.prisma.properties.findMany({
         where: { id: { in: liked.property_ids } },
         orderBy: { created_at: 'desc' },
-        select: { property_image: true, id: true, created_at: true },
+        select: { thumbnail_image: true, id: true, created_at: true },
       });
 
       // Sort the properties in the order of most recent (if not already sorted)
       // Take the first 4 and map to their names
       likedProperties = properties
         .slice(0, 4)
-        .map(p => p.property_image)
-        .filter((property_image): property_image is string => !!property_image);
+        .map(p => p.thumbnail_image)
+        .filter((thumbnail_image): thumbnail_image is string => !!thumbnail_image);
     }
 
     const wishlists = await this.prisma.wishlist.findMany({
@@ -80,9 +80,9 @@ export class WishlistService {
         if (propertyIds.length > 0) {
           const props = await this.prisma.properties.findMany({
             where: { id: { in: propertyIds } },
-            select: { property_image: true },
+            select: { thumbnail_image: true },
           });
-          properties = props.map(p => p.property_image).filter((property_image): property_image is string => !!property_image);
+          properties = props.map(p => p.thumbnail_image).filter((thumbnail_image): thumbnail_image is string => !!thumbnail_image);
         }
 
         return {

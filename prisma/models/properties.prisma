@@ -47,7 +47,7 @@ model properties {
   appliance_finishes            String?
   new_ice_maker                 Boolean?
   upgraded_back_splash          Boolean?
-  property_image                String?
+  thumbnail_image                String?
 
   // Appliance Brands - Kitchen
   refrigerator_manufacture     String?

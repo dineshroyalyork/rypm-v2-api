@@ -600,11 +600,11 @@ export class PropertiesService {
                 },
               }
             : {}),
-          ...(rentalPref.property_type && {
-            buildings: {
-              property_type: rentalPref.property_type,
-            },
-          }),
+          // ...(rentalPref.property_type && {
+          //   buildings: {
+          //     property_type: rentalPref.property_type,
+          //   },
+          // }),
           ...moveInDateFilter,
         };
       }
@@ -639,9 +639,11 @@ export class PropertiesService {
           },
         };
       }
-      if (property_type) {
-        where.buildings = { property_type };
-      }
+      // if (property_type) {
+      //   where.associated_building = {
+      //     property_type,
+      //   };
+      // }
     }
 
     const allProperties = await this.prisma.properties.findMany({
@@ -655,6 +657,7 @@ export class PropertiesService {
         latitude: true,
         longitude: true,
         marketed_price: true,
+        thumbnail_image: true,
         property_details: {
           select: {
             number_of_parking_spaces: true,
@@ -705,6 +708,7 @@ export class PropertiesService {
       select: {
         id: true,
         name: true,
+        thumbnail_image: true,
         bedrooms: true,
         bathrooms: true,
         property_condition: true,
