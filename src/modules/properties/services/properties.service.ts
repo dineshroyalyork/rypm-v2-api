@@ -559,47 +559,86 @@ export class PropertiesService {
     parking?: string,
     min_price?: string,
     max_price?: string,
-    property_type?: string
+    property_type?: string,
+    move_in_date?: string
   ) {
     let where: any = {};
     if (tenant_id) {
       const rentalPref = await this.prisma.rental_preference.findUnique({
         where: { tenant_id },
       });
-
+    
       if (rentalPref) {
-        where = {
-          ...where,
-          bedrooms: rentalPref.bedrooms,
-          bathrooms: rentalPref.bathrooms,
-          property_details: {
-            marketed_price: {
-              gte: rentalPref.price_min,
-              lte: rentalPref.price_max,
+        const moveInDateFilter = rentalPref.move_in_date
+        ? {
+            property_details: {
+              earliest_move_in_date: {
+                gte: new Date(new Date(rentalPref.move_in_date).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+                lte: new Date(new Date(rentalPref.move_in_date).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+              },
             },
-            ...(rentalPref.parking?.toLowerCase() === 'yes' ? { number_of_parking_spaces: { gt: 0 } } : {}),
-          },
-          ...(property_type && {
+          }
+        : {};
+    
+        where = {
+          ...(rentalPref.bedrooms && {
+            bedrooms: { gte: rentalPref.bedrooms },
+          }),
+          ...(rentalPref.bathrooms && {
+            bathrooms: { gte: rentalPref.bathrooms },
+          }),
+          ...(rentalPref.parking && {
+            property_details:{
+            number_of_parking_spaces: { gte: rentalPref.parking },
+            }
+          }),
+          ...(rentalPref.price_min || rentalPref.price_max
+            ? {
+                marketed_price: {
+                  ...(rentalPref.price_min && { gte: Number(rentalPref.price_min) }),
+                  ...(rentalPref.price_max && { lte: Number(rentalPref.price_max) }),
+                },
+              }
+            : {}),
+          ...(rentalPref.property_type && {
             buildings: {
               property_type: rentalPref.property_type,
             },
           }),
+          ...moveInDateFilter,
         };
       }
-    } else {
+    }
+    
+     else {
       // Only apply filters if unauthenticated
-      if (bedrooms) where.bedrooms = bedrooms;
-      if (bathrooms) where.bathrooms = bathrooms;
+      if (bedrooms) where.bedrooms = { gte: bedrooms.toString() };
+      if (bathrooms) where.bathrooms = { gte: bathrooms.toString() };      
       if (search) where.name = { contains: search, mode: 'insensitive' };
-      if (parking?.toLowerCase() === 'yes') {
-        if (!where.property_details) where.property_details = {};
-        where.property_details.number_of_parking_spaces = { gt: 0 };
+      if (parking) {
+        where.property_details = {
+          ...(where.property_details || {}),
+          number_of_parking_spaces: { gte: Number(parking) },
+        };
       }
       if (min_price || max_price) {
         where.marketed_price = {};
         if (min_price) where.marketed_price.gte = Number(min_price);
         if (max_price) where.marketed_price.lte = Number(max_price);
       }  
+      if (move_in_date) {
+        const moveIn = new Date(move_in_date);
+        const moveInPlus7 = new Date(moveIn);
+        moveInPlus7.setDate(moveIn.getDate() + 7);
+      
+        where.property_details = {
+          ...(where.property_details || {}),
+          earliest_move_in_date: {
+            gte: moveIn.toISOString(),
+            lte: moveInPlus7.toISOString(),
+          },
+        };
+      }
       if (property_type) {
         where.buildings = { property_type };
       }
@@ -675,19 +714,36 @@ export class PropertiesService {
         number_of_floors: true,
         fireplace: true,
         window_coverings: true,
+        flooring_common_area: true,
         ceiling_hight: true,
+        bedroom_layout: true,
+        closets: true,
+        en_suite_bathrooms: true,
+        fireplace_bedroom: true,
+        den_can_be_used_as_a_bedroom: true,
         shower_type: true,
         upgraded_bathrooms: true,
         countertops_bathroom: true,
+        central_hvac: true,
+        heating_ac_unit: true,
         heated_floors: true,
+        washer_dryer: true,
+        furnace: true,
+        hot_water_heater_manufacturer: true,
         washer_and_dryer: true,
+        air_conditioning_manufacturer: true,
         countertops: true,
         dishwasher: true,
         upgraded_kitchen: true,
+        appliance_finishes: true,
         new_ice_maker: true,
         upgraded_back_splash: true,
+        refrigerator_manufacture: true,
         stove_oven: true,
+        dishwasher_manufacture: true,
+        microwave_manufacture: true,
         cooktop_manufacture: true,
+        ventilation_hood_manufacture: true,
         latitude: true,
         longitude: true,
         associated_building: true,
@@ -698,8 +754,9 @@ export class PropertiesService {
             hot_water_tank_provider: true,
             refrigerator_manufacture: true,
             microwave_manufacture: true,
-            ventilation_hood_manufacture: true,
             unit_category: true,
+            meta_description: true,
+          lawn_and_snow_care: true,
           },
         },
       },
@@ -733,15 +790,19 @@ export class PropertiesService {
         select: {
           address: true,
           city: true,
-          country: true,
           province: true,
+          country: true,
           postal_code: true,
+          category: true,
           date_of_construction: true,
+          corporation_number: true,
           concierge_building_management_info: true,
           keyless_entry: true,
+          enter_phone_system: true,
           onsite_staff: true,
           elevators: true,
           security_onsite: true,
+          concierge_service: true,
           has_bicycle_storage: true,
           wheelchair_access: true,
           has_guest_suites: true,
@@ -749,9 +810,7 @@ export class PropertiesService {
           pet_spa: true,
           outdoor_patio: true,
           has_rooftop_patio: true,
-          indoor_child_play_area: true,
           outdoor_child_play_area: true,
-          has_pool: true,
           has_outdoor_pool: true,
           has_cabana: true,
           has_tennis_court: true,
@@ -762,6 +821,26 @@ export class PropertiesService {
           public_transit: true,
           car_wash: true,
           electric_car_charging_stations: true,
+          has_meeting_room: true,
+          has_yoga_room: true,
+          rec_room: true,
+          has_game_room: true,
+          has_party_room: true,
+          library: true,
+          has_movie_theater: true,
+          has_billiards_room: true,
+          has_whirlpool: true,
+          has_steam_room: true,
+          has_sauna: true,
+          has_basketball_court: true,
+          has_pool: true,
+          has_ventilation_hood: true,
+          piano_lounge: true,
+          has_bowling_alley: true,
+          indoor_child_play_area: true,
+          has_golf_range: true,
+          gym: true,
+          barbecue_area: true
         },
       });
     }

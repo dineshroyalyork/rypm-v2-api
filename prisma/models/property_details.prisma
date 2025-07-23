@@ -158,7 +158,6 @@ model property_details {
   kijiji                                         Boolean?
   retainer_balance                               Float?
   facebook                                       String?
-  ventilation_hood_manufacture                   String?
   date_unpublished                               DateTime?
   duct_cleaninga                                 Boolean?
   media                                          String?

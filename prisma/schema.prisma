@@ -158,6 +158,9 @@ model buildings {
   sync_with_owner_portal               Boolean?
   update_building_workflow_automations Boolean?
   zoho_sign_rma_request_id             String?
+  barbecue_area                        String
+  gym                                  String
+  concierge_service                    String
   // Timestamps
   created_at                           DateTime  @default(now())
   updated_at                           DateTime  @default(now()) @updatedAt
@@ -560,7 +563,6 @@ model property_details {
   kijiji                                         Boolean?
   retainer_balance                               Float?
   facebook                                       String?
-  ventilation_hood_manufacture                   String?
   date_unpublished                               DateTime?
   duct_cleaninga                                 Boolean?
   media                                          String?
