@@ -170,14 +170,14 @@ export async function uploadMultipleFiles(
  */
 export async function uploadFileToS3(
   file: Express.Multer.File,
-  category: 'properties' | 'tenants' | 'leases' | 'mobile-app',
+  category: string,
   subCategory?: string,
   itemId?: string
-): Promise<string> {
+): Promise<{ url: string; imageId: string }> {
   try {
     const fileName = `${Date.now()}_${file.originalname}`;
-
-    // Build organized path based on category
+    
+    // Determine the subpath based on category
     let basePath = '';
     switch (category) {
       case 'properties':
@@ -196,6 +196,7 @@ export async function uploadFileToS3(
     }
 
     const key = `${basePath}${fileName}`;
+    const url = `https://${BUCKET_NAME}.s3.amazonaws.com/${key}`;
 
     await s3Client.send(
       new PutObjectCommand({
@@ -206,9 +207,10 @@ export async function uploadFileToS3(
       })
     );
 
-    return `https://${BUCKET_NAME}.s3.amazonaws.com/${key}`;
+    return { url: `https://${BUCKET_NAME}.s3.amazonaws.com/${key}`, imageId: key };
   } catch (error) {
-    logger.error('Failed to upload file:', error);
-    throw new Error(`Error uploading file: ${error.message}`);
+    logger.error('Error uploading file to S3:', error);
+    throw new Error(`S3 upload failed: ${error.message}`);
   }
 }
+

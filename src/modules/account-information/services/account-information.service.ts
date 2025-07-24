@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/shared/prisma/prisma.service';
 import { PersonalInformationDto, CurrentResidenceDto, AccountInformationDto, SourceOfIncomeDto, ReferenceDetailsDto, PetsDto, VehiclesDto, EmergencyContactDto, BankDetailsDto,DocumentsDto } from '../dto/account-information.dto';
-import { documentsSchema } from '../dto/documents.dto';
 import { InformationType,SourceOfIncome } from '@/shared/enums/account-details.enum';
+import { uploadFile,uploadFileToS3 } from '@/shared/utils/aws';
 
 
 @Injectable()
@@ -37,9 +37,6 @@ export class AccountInformationService {
 
         case InformationType.BANK_DETAILS:
           return await this.createOrUpdateBankDetails(tenant_id, data as BankDetailsDto);
-
-        case InformationType.DOCUMENTS:
-          return await this.createOrUpdateDocuments(tenant_id, data as DocumentsDto);
 
         default:
           throw new Error('Invalid information type');
@@ -119,8 +116,8 @@ export class AccountInformationService {
       occupation: income.occupation,
       start_date: income.start_date ? new Date(income.start_date) : null,
       monthly_income: income.monthly_income,
-      service_provided: income.source_of_income === 'Self_Employed' ? income.occupation : null,
-      government_program: income.source_of_income === 'Government_Assistance' ? income.employer : null,
+      service_provided: income.service_provided ,
+      government_program: income.government_program ,
       school_name:
         income.source_of_income === SourceOfIncome.STUDENT_NO_INCOME ||
         income.source_of_income === SourceOfIncome.STUDENT_SUPPORTED_BY_PARENTS
@@ -218,13 +215,25 @@ export class AccountInformationService {
   }
 
   private async createOrUpdateBankDetails(tenant_id: string, data: BankDetailsDto) {
+    let directDepositFormUrl = data.direct_deposit_form;
+    // If direct_deposit_form is a base64 string, upload it and get the URL
+    if (directDepositFormUrl && typeof directDepositFormUrl === 'string' && directDepositFormUrl.startsWith('data:image/')) {
+      const uploadResult = await uploadFile(
+        directDepositFormUrl,
+        'tenants',
+        'direct_deposit_forms',
+        tenant_id
+      );
+      directDepositFormUrl = uploadResult.url;
+    }
     const bankDetailsData = {
       account_holder_name: data.account_holder_name,
       bank_name: data.bank_name,
       account_number: data.account_number,
       transit_number: data.transit_number,
       branch_address: data.branch_address,
-      institution_number: data.institution_number
+      institution_number: data.institution_number,
+      direct_deposit_form: directDepositFormUrl,
     };
 
     return await this.prisma.bank_details.upsert({
@@ -236,40 +245,6 @@ export class AccountInformationService {
       },
     });
   }
-
-  private async createOrUpdateDocuments(tenantId: string, data: DocumentsDto) {
-    const parsed = documentsSchema.parse(data);
-  
-    const firstEntry = Object.entries(parsed).find(([_, url]) => typeof url === 'string');
-  
-    if (!firstEntry) {
-      throw new Error('No valid document URL found');
-    }
-  
-    const [key, fileUrl] = firstEntry;
-  
-    return await this.prisma.documents.upsert({
-      where: { tenant_id: tenantId },
-      update: {
-        document_type: key,
-        file_url: fileUrl,
-        status: 'UPLOADED',
-        document_for: key.includes('corporate') ? 'CORPORATE' : 'PERSONAL',
-        is_required: true,
-      },
-      create: {
-        tenant_id: tenantId,
-        document_type: key,
-        file_url: fileUrl,
-        status: 'UPLOADED',
-        document_for: key.includes('corporate') ? 'CORPORATE' : 'PERSONAL',
-        is_required: true,
-      },
-    });
-  }
-  
-  
-  
 
   async getAccountInformation(tenant_id: string, type?: InformationType) {
     try {
@@ -404,11 +379,11 @@ export class AccountInformationService {
   }
 
   private async getDocuments(tenant_id: string) {
-    const documents = await this.prisma.documents.findUnique({
+    const documents = await this.prisma.document.findMany({
       where: { tenant_id: tenant_id },
     });
 
-    if (!documents) {
+    if (!documents || documents.length === 0) {
       throw new NotFoundException('Documents not found');
     }
 
@@ -441,7 +416,7 @@ export class AccountInformationService {
       this.prisma.bank_details.findUnique({
         where: { tenant_id: tenant_id },
       }),
-      this.prisma.documents.findUnique({
+      this.prisma.document.findMany({
         where: { tenant_id: tenant_id },
       }),
     ]);
@@ -458,4 +433,77 @@ export class AccountInformationService {
       documents: documentsInfo,
     };
   }
+
+  async createOrUpdateDocuments(
+    tenant_id: string,
+    files: Record<string, Express.Multer.File>
+  ) {
+    const results: any[] = [];
+    for (const [key, file] of Object.entries(files)) {
+      const uploadResult = await uploadFileToS3(
+        file,
+        'tenants',
+        'documents',
+        tenant_id
+      );
+      // uploadResult should return { url, imageId }
+      const s3Key = uploadResult.imageId; // e.g., 'tenants/tenant_xxx/documents/1753365441615_unnamed.png'
+      const fileName = s3Key.split('/').pop() || '';
+      const doc = await this.prisma.document.upsert({
+        where: {
+          tenant_id_type: {
+            tenant_id,
+            type: key,
+          },
+        },
+        update: {
+          url: uploadResult.url,
+          image_id: fileName, // Only the file name
+          status: 'UPLOADED',
+        },
+        create: {
+          tenant_id,
+          type: key,
+          url: uploadResult.url,
+          image_id: fileName, // Only the file name
+          status: 'UPLOADED',
+          is_required: true,
+        },
+      });
+      results.push(doc);
+    }
+    return results;
+  }
+
+  async createOrUpdateIntroductoryVideo(
+    tenant_id: string,
+    file: Express.Multer.File
+  ) {
+    // Upload the file to S3
+    const uploadResult = await uploadFileToS3(
+      file,
+      'tenants',
+      'introductory_video',
+      tenant_id
+    );
+    const s3Key = uploadResult.imageId; // e.g., 'tenants/tenant_xxx/introductory_video/1753365441615_intro.mp4'
+    const fileName = s3Key.split('/').pop() || '';
+
+    // Upsert in DB
+    return await this.prisma.introductory_video.upsert({
+      where: { tenant_id },
+      update: {
+        url: uploadResult.url,
+        file_name: fileName, // Only the file name
+        status: 'UPLOADED',
+      },
+      create: {
+        tenant_id,
+        url: uploadResult.url,
+        file_name: fileName, // Only the file name
+        status: 'UPLOADED',
+      },
+    });
+  }
+  
 }

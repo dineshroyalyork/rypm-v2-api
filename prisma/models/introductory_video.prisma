@@ -1,0 +1,12 @@
+model introductory_video {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  url         String   // S3 URL or video URL
+  file_name   String   // S3 key or file name (e.g., '1753365441615_intro.mp4')
+  status      String   // e.g., 'UPLOADED', 'PENDING', 'VERIFIED'
+  uploaded_at DateTime @default(now())
+
+  tenant      tenants  @relation(fields: [tenant_id], references: [id])
+
+  @@unique([tenant_id]) // Each tenant can have only one video (remove if you want multiple)
+}

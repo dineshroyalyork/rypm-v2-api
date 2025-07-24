@@ -16,6 +16,7 @@ model bank_details {
   transit_number        String   // 5-digit transit number
   account_number        String   // Personal account number (usually 7-12 digits)
   direct_deposit_form   String?  // File upload for direct deposit form, nullable (can be NULL if not uploaded)
+  branch_address        String?
 
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt
@@ -178,19 +179,18 @@ model device_tokens {
   tenant       tenants     @relation(fields: [tenant_id], references: [id])
 } 
 
-model documents {
-  id                String      @id @default(uuid())
-  tenant_id           String    @unique
-  document_type     String
-  sub_type          String?     // e.g. 'Canadian ID', 'Secondary ID', 'TD Bank', etc.
-  document_name     String?     // Optional: Actual file/document name
-  file_url          String      // S3 or file storage link
-  status            String 
-  is_required       Boolean     @default(false)
-  document_for      String // PERSONAL or CORPORATE
-  uploaded_at       DateTime    @default(now())
-
+model document {
+  id            String   @id @default(uuid())
+  tenant_id     String
+  type          String   // e.g., 'credit_report_personal', 'canadian_id', etc.
+  url           String   // File URL
+  image_id      String?  // S3 key or file ID
+  status        String   // REQUIRED, VERIFIED, etc.
+  uploaded_at   DateTime @default(now())
+  is_required   Boolean  @default(false)
   tenant        tenants  @relation(fields: [tenant_id], references: [id])
+
+  @@unique([tenant_id, type])
 }
 
 model emergency_contact {
@@ -261,6 +261,19 @@ model income_sources {
   tenant tenants @relation(fields: [tenant_id], references: [id])
 
   @@index([tenant_id]) // optional but useful
+}
+
+model introductory_video {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  url         String   // S3 URL or video URL
+  file_name   String   // S3 key or file name (e.g., '1753365441615_intro.mp4')
+  status      String   // e.g., 'UPLOADED', 'PENDING', 'VERIFIED'
+  uploaded_at DateTime @default(now())
+
+  tenant      tenants  @relation(fields: [tenant_id], references: [id])
+
+  @@unique([tenant_id]) // Each tenant can have only one video (remove if you want multiple)
 }
 
 model Liked {
@@ -663,7 +676,8 @@ model tenants {
   vehicles              vehicles?
   personal_informations personal_informations?
   bank_details          bank_details?
-  documents             documents?
+  documents             document[]
+  introductory_video    introductory_video?
 }
 
 

@@ -7,6 +7,7 @@ model bank_details {
   transit_number        String   // 5-digit transit number
   account_number        String   // Personal account number (usually 7-12 digits)
   direct_deposit_form   String?  // File upload for direct deposit form, nullable (can be NULL if not uploaded)
+  branch_address        String?
 
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt

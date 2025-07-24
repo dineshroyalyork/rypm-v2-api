@@ -17,6 +17,8 @@ export const sourceOfIncomeSchema = z
     manager_name: z.string().optional(),
     manager_phone_number: z.string().optional(),
     manager_email: z.string().email('Please enter a valid email address').optional(),
+    service_provided: z.string().optional(),
+    government_program: z.string().optional()
   })
   .superRefine((data, ctx) => {
     const addError = (path: string[], message: string) => {
@@ -34,7 +36,7 @@ export const sourceOfIncomeSchema = z
         break;
 
       case SourceOfIncome.SELF_EMPLOYED:
-        if (!data.occupation || !data.start_date || !data.monthly_income) {
+        if (!data.occupation || !data.service_provided || !data.monthly_income) {
           addError(['occupation'], 'Occupation, start date, and income required for self-employed');
         }
         break;

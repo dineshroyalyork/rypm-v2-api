@@ -4,12 +4,12 @@ import { HousingStatus } from '@/shared/enums/account-details.enum';
 export const housingInformationSchema = z
   .object({
     // Address information
-    address_line_1: z.string().min(1, 'Street address is required').max(100, 'Address must be less than 100 characters'),
+    address_line_1: z.string().min(1, 'Street address is required').max(100, 'Address must be less than 100 characters').optional(),
     address_line_2: z.string().optional(),
-    city: z.string().min(1, 'City is required').max(50, 'City must be less than 50 characters'),
-    province: z.string().min(1, 'Province is required').max(50, 'Province must be less than 50 characters'),
-    postal_code: z.string().regex(/^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/, 'Postal code must be in format: A1A 1A1'),
-    country: z.string().min(1, 'Country is required').max(50, 'Country must be less than 50 characters'),
+    city: z.string().min(1, 'City is required').max(50, 'City must be less than 50 characters').optional(),
+    province: z.string().min(1, 'Province is required').max(50, 'Province must be less than 50 characters').optional(),
+    postal_code: z.string().regex(/^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/, 'Postal code must be in format: A1A 1A1').optional(),
+    country: z.string().min(1, 'Country is required').max(50, 'Country must be less than 50 characters').optional(),
 
     // Housing status
     housing_status: z.nativeEnum(HousingStatus).refine(val => val !== undefined, {
