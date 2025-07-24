@@ -711,7 +711,6 @@ export class PropertiesService {
       page_number,
       page_size,
     };
-    
   }
 
   async getPropertyById(property_id: string, tenant_id?: string) {
@@ -721,6 +720,7 @@ export class PropertiesService {
         id: true,
         name: true,
         thumbnail_image: true,
+        property_attachments: true,
         bedrooms: true,
         bathrooms: true,
         property_condition: true,
