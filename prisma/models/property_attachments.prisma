@@ -1,0 +1,21 @@
+model PropertyAttachments {
+  id          String         @id @default(uuid())
+  property_id String
+  label       String
+  type        AttachmentType
+  url         String
+  file_name   String
+  index       Int?
+  created_at  DateTime       @default(now())
+  updated_at  DateTime       @updatedAt
+
+  // Relation to property
+  property properties @relation(fields: [property_id], references: [id], onDelete: Cascade)
+
+  @@index([property_id])
+}
+
+enum AttachmentType {
+  IMAGE
+  VIDEO
+}

@@ -1,10 +1,10 @@
-import { Controller, Post, Get, Body, UseGuards, Request, UsePipes, Query,UseInterceptors,UploadedFiles } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Request, UsePipes, Query,UseInterceptors,UploadedFiles, UploadedFile } from '@nestjs/common';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { AuthGuard } from '@/shared/guards/auth.guard';
 import { AccountInformationService } from '../services/account-information.service';
 import { accountInformationSchema, AccountInformationDto } from '../dto/account-information.dto';
 import { InformationType } from '@/shared/enums/account-details.enum';
-import { AnyFilesInterceptor } from '@nestjs/platform-express';
+import { AnyFilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { uploadFileToS3 } from '@/shared/utils/aws';
 
 @Controller({ path: 'account-information', version: '2' })
@@ -42,23 +42,21 @@ export class AccountInformationController {
 
   @Post('documents')
   @UseGuards(AuthGuard)
-  @UseInterceptors(AnyFilesInterceptor())
-  async createOrUpdateDocuments(
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadDocument(
     @Request() req: any,
-    @UploadedFiles() files: Express.Multer.File[],
+    @UploadedFile() file: Express.Multer.File,
     @Body() body: any
   ) {
     const tenant_id = req.user?.sub || req.user?.id;
+    const { type, sub_type } = body;
 
-    // files is now an array, each file has a .fieldname property
-    const flatFiles: Record<string, Express.Multer.File> = {};
-    for (const file of files) {
-      flatFiles[file.fieldname] = file;
-    }
-
-    return this.accountInformationService.createOrUpdateDocuments(
+    // Pass type, sub_type, and file to your service
+    return this.accountInformationService.createOrUpdateDocumentWithType(
       tenant_id,
-      flatFiles
+      type,
+      sub_type,
+      file
     );
   }
 

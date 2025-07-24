@@ -276,6 +276,9 @@ export class AccountInformationService {
         case InformationType.DOCUMENTS:
           return await this.getDocuments(tenant_id);
 
+        case InformationType.INTRODUCTORY_VIDEO:
+          return await this.getIntroductoryVideo(tenant_id);
+
         default:
           // Get all account information
           return await this.getAllAccountInformation(tenant_id);
@@ -390,6 +393,18 @@ export class AccountInformationService {
     return documents;
   }
 
+  private async getIntroductoryVideo(tenant_id: string) {
+    const documents = await this.prisma.introductory_video.findMany({
+      where: { tenant_id: tenant_id },
+    });
+
+    if (!documents || documents.length === 0) {
+      throw new NotFoundException('Documents not found');
+    }
+
+    return documents;
+  }
+
   private async getAllAccountInformation(tenant_id: string) {
     const [personalInfo, housingInfo, incomeInfos, referenceInfo, petsInfos, vehiclesInfo, emergencyContactInfo, bankDetailsInfo, documentsInfo] = await Promise.all([
       this.prisma.personal_informations.findUnique({
@@ -419,6 +434,9 @@ export class AccountInformationService {
       this.prisma.document.findMany({
         where: { tenant_id: tenant_id },
       }),
+      this.prisma.introductory_video.findMany({
+        where: { tenant_id: tenant_id },
+      }),
     ]);
 
     return {
@@ -432,47 +450,6 @@ export class AccountInformationService {
       bank_details: bankDetailsInfo,
       documents: documentsInfo,
     };
-  }
-
-  async createOrUpdateDocuments(
-    tenant_id: string,
-    files: Record<string, Express.Multer.File>
-  ) {
-    const results: any[] = [];
-    for (const [key, file] of Object.entries(files)) {
-      const uploadResult = await uploadFileToS3(
-        file,
-        'tenants',
-        'documents',
-        tenant_id
-      );
-      // uploadResult should return { url, imageId }
-      const s3Key = uploadResult.imageId; // e.g., 'tenants/tenant_xxx/documents/1753365441615_unnamed.png'
-      const fileName = s3Key.split('/').pop() || '';
-      const doc = await this.prisma.document.upsert({
-        where: {
-          tenant_id_type: {
-            tenant_id,
-            type: key,
-          },
-        },
-        update: {
-          url: uploadResult.url,
-          image_id: fileName, // Only the file name
-          status: 'UPLOADED',
-        },
-        create: {
-          tenant_id,
-          type: key,
-          url: uploadResult.url,
-          image_id: fileName, // Only the file name
-          status: 'UPLOADED',
-          is_required: true,
-        },
-      });
-      results.push(doc);
-    }
-    return results;
   }
 
   async createOrUpdateIntroductoryVideo(
@@ -506,4 +483,43 @@ export class AccountInformationService {
     });
   }
   
+  async createOrUpdateDocumentWithType(
+    tenant_id: string,
+    type: string,
+    sub_type: string,
+    file: Express.Multer.File
+  ) {
+    const uploadResult = await uploadFileToS3(
+      file,
+      'tenants',
+      type, // or sub_type, depending on your S3 structure
+      tenant_id
+    );
+    const fileName = uploadResult.imageId.split('/').pop() || '';
+
+    // Save in your document table
+    return await this.prisma.document.upsert({
+      where: {
+        tenant_id_sub_type: {
+          tenant_id,
+          // type: type, // or type, depending on your schema
+          sub_type: sub_type
+        },
+      },
+      update: {
+        url: uploadResult.url,
+        image_id: fileName,
+        status: 'UPLOADED',
+      },
+      create: {
+        tenant_id,
+        type: type, // or type
+        sub_type: sub_type,
+        url: uploadResult.url,
+        image_id: fileName,
+        status: 'UPLOADED',
+        is_verified: true,
+      },
+    });
+  }
 }

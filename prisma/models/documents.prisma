@@ -2,12 +2,13 @@ model document {
   id            String   @id @default(uuid())
   tenant_id     String
   type          String   // e.g., 'credit_report_personal', 'canadian_id', etc.
+  sub_type      String?
   url           String   // File URL
   image_id      String?  // S3 key or file ID
   status        String   // REQUIRED, VERIFIED, etc.
   uploaded_at   DateTime @default(now())
-  is_required   Boolean  @default(false)
+  is_verified   Boolean  @default(false)
   tenant        tenants  @relation(fields: [tenant_id], references: [id])
 
-  @@unique([tenant_id, type])
+  @@unique([tenant_id, sub_type])
 }
