@@ -1,10 +1,5 @@
 import { z } from 'zod';
 
-export enum AttachmentType {
-  IMAGE = 'IMAGE',
-  VIDEO = 'VIDEO',
-}
-
 // Schema for creating property attachment with file upload
 export const createPropertyAttachmentSchema = z.object({
   property_id: z.string().uuid('Invalid property ID'),

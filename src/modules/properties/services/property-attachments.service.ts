@@ -1,7 +1,8 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/shared/prisma/prisma.service';
-import { CreatePropertyAttachmentDto, GetPropertyAttachmentsDto, AttachmentType } from '../dto/property-attachments.dto';
+import { CreatePropertyAttachmentDto, GetPropertyAttachmentsDto } from '../dto/property-attachments.dto';
 import { uploadFileToS3 } from '@/shared/utils/aws';
+import { AttachmentType } from '@/shared/enums';
 
 @Injectable()
 export class PropertyAttachmentsService {

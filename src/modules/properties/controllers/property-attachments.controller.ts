@@ -8,7 +8,8 @@ import {
   createPropertyAttachmentSchema,
   getPropertyAttachmentsSchema,
 } from '../dto/property-attachments.dto';
-@Controller('property-attachments')
+
+@Controller({ path: 'property-attachments', version: '2' })
 export class PropertyAttachmentsController {
   constructor(private readonly propertyAttachmentsService: PropertyAttachmentsService) {}
 
