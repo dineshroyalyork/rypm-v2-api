@@ -1,6 +1,5 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { jwtConstants } from './constants';
 
 @Injectable()
 export class OptionalAuthGuard implements CanActivate {
@@ -11,7 +10,7 @@ export class OptionalAuthGuard implements CanActivate {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
       try {
-        const payload = await this.jwtService.verifyAsync(token, { secret: jwtConstants.secret });
+        const payload = await this.jwtService.verifyAsync(token, { secret: process.env.JWT_SECRET });
         request.user = payload;
       } catch {
         // Invalid token, treat as unauthenticated
@@ -20,4 +19,4 @@ export class OptionalAuthGuard implements CanActivate {
     }
     return true;
   }
-} 
+}
