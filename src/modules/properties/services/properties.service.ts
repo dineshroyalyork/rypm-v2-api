@@ -1,4 +1,3 @@
-import { paginateArray } from '@/shared/utils/response';
 import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../shared/prisma/prisma.service';
@@ -6,6 +5,7 @@ import { ALLOWED_PROPERTY_TYPES } from '../constants/property-types';
 import { parseCsvStringToJson } from '../../../../shared/utils/csv';
 import { CreatePropertyDto } from '../dto/create-property.dto';
 import { RentalPreferencesDto } from '../dto/rental-preferences.dto';
+import { getDistance } from 'geolib';
 export type PropertyType = (typeof ALLOWED_PROPERTY_TYPES)[number];
 
 @Injectable()
@@ -560,37 +560,38 @@ export class PropertiesService {
     min_price?: string,
     max_price?: string,
     property_type?: string,
-    move_in_date?: string
+    move_in_date?: string,
+    latitude?: string,
+    longitude?: string,
+    radius?: string
   ) {
     let where: any = {};
+  
+    // Handle rental preference filtering
     if (tenant_id) {
       const rentalPref = await this.prisma.rental_preference.findUnique({
         where: { tenant_id },
       });
-    
+  
       if (rentalPref) {
         const moveInDateFilter = rentalPref.move_in_date
-        ? {
-            property_details: {
-              earliest_move_in_date: {
-                gte: new Date(new Date(rentalPref.move_in_date).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-                lte: new Date(new Date(rentalPref.move_in_date).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          ? {
+              property_details: {
+                earliest_move_in_date: {
+                  gte: new Date(new Date(rentalPref.move_in_date).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+                  lte: new Date(new Date(rentalPref.move_in_date).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                },
               },
-            },
-          }
-        : {};
-    
-        where = {
-          ...(rentalPref.bedrooms && {
-            bedrooms: { gte: rentalPref.bedrooms },
-          }),
-          ...(rentalPref.bathrooms && {
-            bathrooms: { gte: rentalPref.bathrooms },
-          }),
-          ...(rentalPref.parking && {
-            property_details:{
-            number_of_parking_spaces: { gte: rentalPref.parking },
             }
+          : {};
+  
+        where = {
+          ...(rentalPref.bedrooms && { bedrooms: { gte: rentalPref.bedrooms } }),
+          ...(rentalPref.bathrooms && { bathrooms: { gte: rentalPref.bathrooms } }),
+          ...(rentalPref.parking && {
+            property_details: {
+              number_of_parking_spaces: { gte: rentalPref.parking },
+            },
           }),
           ...(rentalPref.price_min || rentalPref.price_max
             ? {
@@ -600,20 +601,12 @@ export class PropertiesService {
                 },
               }
             : {}),
-          // ...(rentalPref.property_type && {
-          //   buildings: {
-          //     property_type: rentalPref.property_type,
-          //   },
-          // }),
           ...moveInDateFilter,
         };
       }
-    }
-    
-     else {
-      // Only apply filters if unauthenticated
+    } else {
       if (bedrooms) where.bedrooms = { gte: bedrooms.toString() };
-      if (bathrooms) where.bathrooms = { gte: bathrooms.toString() };      
+      if (bathrooms) where.bathrooms = { gte: bathrooms.toString() };
       if (search) where.name = { contains: search, mode: 'insensitive' };
       if (parking) {
         where.property_details = {
@@ -625,12 +618,12 @@ export class PropertiesService {
         where.marketed_price = {};
         if (min_price) where.marketed_price.gte = Number(min_price);
         if (max_price) where.marketed_price.lte = Number(max_price);
-      }  
+      }
       if (move_in_date) {
         const moveIn = new Date(move_in_date);
         const moveInPlus7 = new Date(moveIn);
         moveInPlus7.setDate(moveIn.getDate() + 7);
-      
+  
         where.property_details = {
           ...(where.property_details || {}),
           earliest_move_in_date: {
@@ -639,28 +632,14 @@ export class PropertiesService {
           },
         };
       }
-      // if (property_type) {
-      //   where.associated_building = {
-      //     property_type,
-      //   };
-      // }
     }
-
-    const skip = (page_number - 1) * page_size;
-    const take = page_size;
-    
-    // Mark new property threshold
+  
+    // Calculate new property threshold
     const lastWeek = new Date();
     lastWeek.setDate(lastWeek.getDate() - 7);
-    
-    // Fetch total count for pagination metadata
-    const total_count = await this.prisma.properties.count({ where });
-    
-    // Fetch paginated properties
-    const allProperties = await this.prisma.properties.findMany({
+  
+    let allProperties = await this.prisma.properties.findMany({
       where,
-      skip,
-      take,
       select: {
         id: true,
         name: true,
@@ -678,41 +657,59 @@ export class PropertiesService {
         },
       },
     });
-    
-    let dataWithLiked = allProperties;
-    
-    // If tenant_id exists, mark liked properties
-    if (tenant_id) {
-      const liked = await this.prisma.liked.findUnique({
-        where: { tenant_id },
-        select: { property_ids: true },
+  
+    // Mark liked & new
+    const likedIds = tenant_id
+      ? new Set(
+          (
+            await this.prisma.liked.findUnique({
+              where: { tenant_id },
+              select: { property_ids: true },
+            })
+          )?.property_ids || []
+        )
+      : new Set();
+  
+    let dataWithLiked = allProperties.map((prop) => ({
+      ...prop,
+      liked: tenant_id ? likedIds.has(prop.id) : undefined,
+      is_new_property: new Date(prop.updated_at) >= lastWeek,
+    }));
+  
+    // Geo filter
+    if (latitude && longitude && radius) {
+      const lat = Number(latitude);
+      const lon = Number(longitude);
+      const rad = Number(radius);
+  
+      dataWithLiked = dataWithLiked.filter((prop) => {
+        if (prop.latitude && prop.longitude) {
+          const distance = getDistance(
+            { latitude: lat, longitude: lon },
+            { latitude: Number(prop.latitude), longitude: Number(prop.longitude) }
+          );
+          return distance <= rad * 1000;
+        }
+        return false;
       });
-    
-      const likedIds = liked ? new Set(liked.property_ids) : new Set();
-    
-      dataWithLiked = allProperties.map(prop => ({
-        ...prop,
-        liked: likedIds.has(prop.id),
-        is_new_property: new Date(prop.updated_at) >= lastWeek,
-      }));
-    } else {
-      dataWithLiked = allProperties.map(prop => ({
-        ...prop,
-        is_new_property: new Date(prop.updated_at) >= lastWeek,
-      }));
     }
-    
+  
+    const total_count = dataWithLiked.length;
+  
+    // Manual pagination after filtering
+    const paginated = dataWithLiked.slice((page_number - 1) * page_size, page_number * page_size);
+  
     return {
       statusCode: 200,
       success: true,
       message: 'Properties fetched successfully',
-      data: dataWithLiked,
+      data: paginated,
       total_count,
       page_number,
       page_size,
     };
-    
   }
+  
 
   async getPropertyById(property_id: string, tenant_id?: string) {
     const property = await this.prisma.properties.findUnique({
@@ -721,6 +718,7 @@ export class PropertiesService {
         id: true,
         name: true,
         thumbnail_image: true,
+        property_attachments: true,
         bedrooms: true,
         bathrooms: true,
         property_condition: true,

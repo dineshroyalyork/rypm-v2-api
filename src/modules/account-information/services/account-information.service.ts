@@ -492,7 +492,7 @@ export class AccountInformationService {
     const uploadResult = await uploadFileToS3(
       file,
       'tenants',
-      type, // or sub_type, depending on your S3 structure
+      `documents/${type}`, // or sub_type, depending on your S3 structure
       tenant_id
     );
     const fileName = uploadResult.imageId.split('/').pop() || '';

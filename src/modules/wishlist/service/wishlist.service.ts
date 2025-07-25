@@ -1,5 +1,4 @@
 import { PrismaService } from '@/shared/prisma/prisma.service';
-import { paginateArray } from '@/shared/utils/response';
 import { HttpException, Injectable } from '@nestjs/common';
 import { AddPropertyDto } from '../dto/add-property.dto';
 import { CreateWishlistDto } from '../dto/create-wishlist.dto';
@@ -248,7 +247,7 @@ export class WishlistService {
   }
 
   async getWishlistById(wishlist_id: string, page_number = 1, page_size = 10) {
-    // Fetch wishlist and all properties
+    // Validate wishlist existence
     const wishlist = await this.prisma.wishlist.findUnique({
       where: { id: wishlist_id },
       select: {
@@ -257,41 +256,53 @@ export class WishlistService {
         tenant_id: true,
         created_at: true,
         updated_at: true,
+      },
+    });
+  
+    if (!wishlist) throw new HttpException('Wishlist not found', 404);
+  
+    const skip = (page_number - 1) * page_size;
+    const take = page_size;
+  
+    // Fetch total count of properties in wishlist
+    const total_count = await this.prisma.wishlist_property.count({
+      where: { wishlist_id },
+    });
+  
+    // Fetch paginated properties from the wishlist
+    const wishlistProperties = await this.prisma.wishlist_property.findMany({
+      where: { wishlist_id },
+      skip,
+      take,
+      select: {
         properties: {
           select: {
-            properties: {
-              select: {
-                id: true,
-                name: true,
-                bathrooms: true,
-                bedrooms: true,
-                latitude: true,
-                longitude: true,
-                marketed_price: true,
-              },
-            },
+            id: true,
+            name: true,
+            bathrooms: true,
+            bedrooms: true,
+            latitude: true,
+            longitude: true,
+            marketed_price: true,
           },
         },
       },
     });
-
-    if (!wishlist) throw new HttpException('Wishlist not found', 404);
-
-    // Flatten property info for easier consumption
-    const allProperties = wishlist.properties.map(wp => wp.properties);
-    const paginated = paginateArray(allProperties, page_number, page_size);
-
+  
+    const properties = wishlistProperties.map(wp => wp.properties);
+  
     return {
       statusCode: 200,
       success: true,
       message: 'Wishlist details fetched successfully',
       data: {
         ...wishlist,
-        properties: paginated.data,
-        total_count: paginated.total_count,
-        page_number: paginated.page_number,
-        page_size: paginated.page_size,
+        properties,
+        total_count,
+        page_number,
+        page_size,
       },
     };
   }
+  
 }

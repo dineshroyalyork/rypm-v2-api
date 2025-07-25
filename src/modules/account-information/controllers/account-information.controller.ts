@@ -15,9 +15,14 @@ export class AccountInformationController {
   @Post()
   @UsePipes(new ZodValidationPipe(accountInformationSchema))
   async createOrUpdateAccountInformation(@Request() req: any, @Body() accountInformationDto: AccountInformationDto) {
-    const tenant_id = (req as any).user?.sub || (req as any).user?.id;
+    const tenant_id = req.user?.sub || req.user?.id;
     const result = await this.accountInformationService.createOrUpdateAccountInformation(tenant_id, accountInformationDto);
-    return result;
+    return {
+      statusCode: 200,
+      success: true,
+      message: 'Account information saved successfully',
+      data: result,
+    };
   }
 
   @Get()
@@ -27,12 +32,14 @@ export class AccountInformationController {
       const result = await this.accountInformationService.getAccountInformation(tenant_id, type);
 
       return {
+        statusCode: 200,
         success: true,
         message: type ? `${type.replace('_', ' ')} retrieved successfully` : 'All account information retrieved successfully',
         data: result,
       };
     } catch (error) {
       return {
+        statusCode: 500,
         success: false,
         message: error.message,
         data: null,
@@ -52,12 +59,17 @@ export class AccountInformationController {
     const { type, sub_type } = body;
 
     // Pass type, sub_type, and file to your service
-    return this.accountInformationService.createOrUpdateDocumentWithType(
-      tenant_id,
-      type,
-      sub_type,
-      file
-    );
+    return {
+      statusCode: 200,
+      success: true,
+      message: 'Document uploaded successfully',
+      data: await this.accountInformationService.createOrUpdateDocumentWithType(
+        tenant_id,
+        type,
+        sub_type,
+        file
+      ),
+    };
   }
 
   @Post('introductory-video')
@@ -71,12 +83,22 @@ export class AccountInformationController {
     const tenant_id = req.user?.sub || req.user?.id;
     const videoFile = files.find(f => f.mimetype.startsWith('video/'));
     if (!videoFile) {
-      throw new Error('No video file uploaded');
+      return {
+        statusCode: 400,
+        success: false,
+        message: 'No video file uploaded',
+        data: null,
+      };
     }
-    return this.accountInformationService.createOrUpdateIntroductoryVideo(
-      tenant_id,
-      videoFile
-    );
+    return {
+      statusCode: 200,
+      success: true,
+      message: 'Introductory video uploaded successfully',
+      data: await this.accountInformationService.createOrUpdateIntroductoryVideo(
+        tenant_id,
+        videoFile
+      ),
+    };
   }
   
 }

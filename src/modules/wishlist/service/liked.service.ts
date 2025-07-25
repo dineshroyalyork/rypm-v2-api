@@ -1,5 +1,4 @@
 import { PrismaService } from '@/shared/prisma/prisma.service';
-import { paginateArray } from '@/shared/utils/response';
 import { Injectable } from '@nestjs/common';
 
 @Injectable()
@@ -71,8 +70,8 @@ export class LikedService {
       where: { tenant_id },
       select: { id: true, property_ids: true },
     });
-
-    if (!liked) {
+  
+    if (!liked || !liked.property_ids || liked.property_ids.length === 0) {
       return {
         statusCode: 200,
         success: true,
@@ -80,10 +79,13 @@ export class LikedService {
         data: { count: 0, property_ids: [] },
       };
     }
-
-    // Fetch property details for all liked IDs
-    const allProperties = await this.prisma.properties.findMany({
-      where: { id: { in: liked.property_ids } },
+  
+    const total_count = liked.property_ids.length;
+    const skip = (page_number - 1) * page_size;
+    const paginatedPropertyIds = liked.property_ids.slice(skip, skip + page_size);
+  
+    const properties = await this.prisma.properties.findMany({
+      where: { id: { in: paginatedPropertyIds } },
       select: {
         id: true,
         name: true,
@@ -94,21 +96,19 @@ export class LikedService {
         marketed_price: true,
       },
     });
-
-    // Use the common pagination utility
-    const paginated = paginateArray(allProperties, page_number, page_size);
-
+  
     return {
       statusCode: 200,
       success: true,
       message: 'Liked properties retrieved successfully',
       data: {
         id: liked.id,
-        properties: paginated.data,
-        total_count: paginated.total_count,
-        page_number: paginated.page_number,
-        page_size: paginated.page_size,
+        properties,
+        total_count,
+        page_number,
+        page_size,
       },
     };
   }
+  
 }

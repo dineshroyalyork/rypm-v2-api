@@ -40,7 +40,7 @@ export class PropertiesController {
     if ((req as any).user && ((req as any).user.sub || (req as any).user.id)) {
       tenant_id = (req as any).user.sub || (req as any).user.id;
     }
-    const { bedrooms, bathrooms, parking, min_price, max_price, search,property_type,move_in_date } = query;
+    const { bedrooms, bathrooms, parking, min_price, max_price, search,property_type,move_in_date,latitude,longitude,radius } = query;
     const page_number = query.page_number ? parseInt(query.page_number as string, 10) : 1;
     const page_size = query.page_size ? parseInt(query.page_size as string, 10) : 10;
     return this.propertiesService.getAllPropertiesSummary(
@@ -54,7 +54,10 @@ export class PropertiesController {
       min_price,
       max_price,
       property_type,
-      move_in_date
+      move_in_date,
+      latitude,
+      longitude,
+      radius
     );
   }
 
