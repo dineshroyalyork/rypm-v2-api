@@ -6,7 +6,7 @@ import { createTourSlotsSchema, CreateTourSlotsDto } from '../dto/create-tour-sl
 import { getTourSlotsSchema, GetTourSlotsDto } from '../dto/get-tour-slots.dto';
 
 @Controller({ path: 'tour-scheduling', version: '2' })
-@UseGuards(AuthGuard)
+//@UseGuards(AuthGuard)
 export class TourSchedulingController {
   constructor(private readonly tourSchedulingService: TourSchedulingService) {}
 
