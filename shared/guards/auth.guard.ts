@@ -38,8 +38,8 @@ import { JwtService } from '@nestjs/jwt';
 import { Observable } from 'rxjs';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorators'; // adjust the import path as necessary
 @Injectable()
-export class JwtAuthGuard implements CanActivate {
-  private readonly logger = new Logger(JwtAuthGuard.name);
+export class AuthGuard implements CanActivate {
+  private readonly logger = new Logger(AuthGuard.name);
 
   constructor(
     private readonly jwtService: JwtService,
