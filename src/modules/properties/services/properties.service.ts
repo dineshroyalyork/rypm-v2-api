@@ -473,60 +473,64 @@ export class PropertiesService {
   }
 
   async saveOrClearRentalPreferences(tenant_id: string, rentalPreferencesDto: RentalPreferencesDto & { clear?: boolean }) {
-    if (!tenant_id) {
-      throw new BadRequestException('Unauthorized or invalid token');
-    }
+    try {
+      if (!tenant_id) {
+        throw new BadRequestException('Unauthorized or invalid token');
+      }
 
-    // If `clear` flag is true, delete preferences
-    if (rentalPreferencesDto.clear) {
-      await this.prisma.rental_preference.deleteMany({
+      // If `clear` flag is true, delete preferences
+      if (rentalPreferencesDto.clear) {
+        await this.prisma.rental_preference.deleteMany({
+          where: { tenant_id },
+        });
+
+        return {
+          statusCode: 200,
+          success: true,
+          message: 'Rental preferences cleared successfully',
+        };
+      }
+
+      // Validate property_type
+      const { price_min, price_max, bedrooms, bathrooms, parking, property_type, move_in_date } = rentalPreferencesDto;
+
+      if (property_type && !ALLOWED_PROPERTY_TYPES.includes(property_type as PropertyType)) {
+        throw new BadRequestException(`Invalid property_type: ${property_type}`);
+      }
+
+      // Upsert rental preferences
+      const upserted = await this.prisma.rental_preference.upsert({
         where: { tenant_id },
+        update: {
+          price_min,
+          price_max,
+          bedrooms,
+          bathrooms,
+          parking,
+          property_type,
+          move_in_date,
+        },
+        create: {
+          tenant_id,
+          price_min,
+          price_max,
+          bedrooms,
+          bathrooms,
+          parking,
+          property_type,
+          move_in_date,
+        },
       });
 
       return {
         statusCode: 200,
         success: true,
-        message: 'Rental preferences cleared successfully',
+        message: 'Rental preferences saved successfully',
+        data: upserted,
       };
+    } catch (error) {
+      throw new InternalServerErrorException(error.message);
     }
-
-    // Validate property_type
-    const { price_min, price_max, bedrooms, bathrooms, parking, property_type, move_in_date } = rentalPreferencesDto;
-
-    if (property_type && !ALLOWED_PROPERTY_TYPES.includes(property_type as PropertyType)) {
-      throw new BadRequestException(`Invalid property_type: ${property_type}`);
-    }
-
-    // Upsert rental preferences
-    const upserted = await this.prisma.rental_preference.upsert({
-      where: { tenant_id },
-      update: {
-        price_min,
-        price_max,
-        bedrooms,
-        bathrooms,
-        parking,
-        property_type,
-        move_in_date,
-      },
-      create: {
-        tenant_id,
-        price_min,
-        price_max,
-        bedrooms,
-        bathrooms,
-        parking,
-        property_type,
-        move_in_date,
-      },
-    });
-
-    return {
-      statusCode: 200,
-      success: true,
-      message: 'Rental preferences saved successfully',
-      data: upserted,
-    };
   }
 
   async getRentalPreferences(tenant_id: string) {
@@ -566,13 +570,13 @@ export class PropertiesService {
     radius?: string
   ) {
     let where: any = {};
-  
+
     // Handle rental preference filtering
     if (tenant_id) {
       const rentalPref = await this.prisma.rental_preference.findUnique({
         where: { tenant_id },
       });
-  
+
       if (rentalPref) {
         const moveInDateFilter = rentalPref.move_in_date
           ? {
@@ -584,7 +588,7 @@ export class PropertiesService {
               },
             }
           : {};
-  
+
         where = {
           ...(rentalPref.bedrooms && { bedrooms: { gte: rentalPref.bedrooms } }),
           ...(rentalPref.bathrooms && { bathrooms: { gte: rentalPref.bathrooms } }),
@@ -623,7 +627,7 @@ export class PropertiesService {
         const moveIn = new Date(move_in_date);
         const moveInPlus7 = new Date(moveIn);
         moveInPlus7.setDate(moveIn.getDate() + 7);
-  
+
         where.property_details = {
           ...(where.property_details || {}),
           earliest_move_in_date: {
@@ -633,11 +637,11 @@ export class PropertiesService {
         };
       }
     }
-  
+
     // Calculate new property threshold
     const lastWeek = new Date();
     lastWeek.setDate(lastWeek.getDate() - 7);
-  
+
     let allProperties = await this.prisma.properties.findMany({
       where,
       select: {
@@ -657,7 +661,7 @@ export class PropertiesService {
         },
       },
     });
-  
+
     // Mark liked & new
     const likedIds = tenant_id
       ? new Set(
@@ -669,36 +673,33 @@ export class PropertiesService {
           )?.property_ids || []
         )
       : new Set();
-  
-    let dataWithLiked = allProperties.map((prop) => ({
+
+    let dataWithLiked = allProperties.map(prop => ({
       ...prop,
       liked: tenant_id ? likedIds.has(prop.id) : undefined,
       is_new_property: new Date(prop.updated_at) >= lastWeek,
     }));
-  
+
     // Geo filter
     if (latitude && longitude && radius) {
       const lat = Number(latitude);
       const lon = Number(longitude);
       const rad = Number(radius);
-  
-      dataWithLiked = dataWithLiked.filter((prop) => {
+
+      dataWithLiked = dataWithLiked.filter(prop => {
         if (prop.latitude && prop.longitude) {
-          const distance = getDistance(
-            { latitude: lat, longitude: lon },
-            { latitude: Number(prop.latitude), longitude: Number(prop.longitude) }
-          );
+          const distance = getDistance({ latitude: lat, longitude: lon }, { latitude: Number(prop.latitude), longitude: Number(prop.longitude) });
           return distance <= rad * 1000;
         }
         return false;
       });
     }
-  
+
     const total_count = dataWithLiked.length;
-  
+
     // Manual pagination after filtering
     const paginated = dataWithLiked.slice((page_number - 1) * page_size, page_number * page_size);
-  
+
     return {
       statusCode: 200,
       success: true,
@@ -709,7 +710,6 @@ export class PropertiesService {
       page_size,
     };
   }
-  
 
   async getPropertyById(property_id: string, tenant_id?: string) {
     const property = await this.prisma.properties.findUnique({
@@ -770,7 +770,7 @@ export class PropertiesService {
             microwave_manufacture: true,
             unit_category: true,
             meta_description: true,
-          lawn_and_snow_care: true,
+            lawn_and_snow_care: true,
           },
         },
       },
@@ -854,7 +854,7 @@ export class PropertiesService {
           indoor_child_play_area: true,
           has_golf_range: true,
           gym: true,
-          barbecue_area: true
+          barbecue_area: true,
         },
       });
     }

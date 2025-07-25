@@ -7,7 +7,7 @@ import { AllExceptionsFilter } from './filters/http-exception.filter';
 import { AuthGuard } from './guards/auth.guard';
 import { WinstonLoggerService } from './logger/winston-logger.service';
 
-@Global() 
+@Global()
 @Module({
   providers: [
     PrismaService,
@@ -17,6 +17,6 @@ import { WinstonLoggerService } from './logger/winston-logger.service';
     //   useClass: AllExceptionsFilter,
     // },
   ],
-  exports: [PrismaService,WinstonLoggerService],
+  exports: [PrismaService, WinstonLoggerService],
 })
 export class SharedModule {}
