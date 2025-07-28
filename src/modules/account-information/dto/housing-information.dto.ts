@@ -22,6 +22,7 @@ export const housingInformationSchema = z
     landlord_first_name: z.string().optional(),
     landlord_Last_name: z.string().optional(),
     landlord_phone_number: z.string().optional(),
+    landlord_country_code: z.string().optional(),
     landlord_email: z.string().email('Please enter a valid email address').optional(),
     rent_amount: z.number().positive('Rent amount must be positive').optional(),
 

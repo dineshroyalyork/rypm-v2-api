@@ -12,22 +12,8 @@ import { documentsSchema } from './documents.dto';
 
 // Main Account Information Schema
 export const accountInformationSchema = z.object({
-  type: z.nativeEnum(InformationType).refine(val => val !== undefined, {
-    message: 'Please specify the type of information (personal_information or current_residence)',
-  }),
-  data: z.union([
-    personalInformationSchema,
-    housingInformationSchema,
-    sourceOfIncomeSchema,
-    sourceOfIncomeArraySchema,
-    referenceDetailsSchema,
-    petsSchema,
-    petsArraySchema,
-    vehiclesSchema,
-    emergencyContactSchema,
-    bankDetailsSchema,
-    documentsSchema,
-  ]),
+  type: z.nativeEnum(InformationType),
+  data: z.any(), // Temporarily use any to see if the issue is with the union
 });
 
 export type AccountInformationDto = z.infer<typeof accountInformationSchema>;

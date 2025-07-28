@@ -1,11 +1,11 @@
 model emergency_contact {
   id            String   @id @default(uuid())
   tenant_id        String @unique
-  firstName     String
-  lastName      String
-  email         String
-  mobile_number  String
-  relationship  String
+  first_name     String?
+  last_name      String?
+  email         String?
+  mobile_number  String?
+  relationship  String?
 
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt

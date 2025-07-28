@@ -8,7 +8,7 @@ model personal_informations {
   mobile_number           String?
   gender                  String?
   marital_status          String?
-  credit_score            Int?
+  credit_score            String?
   government_id_name      String?
   government_id_number    String?
   social_insurance_number String?

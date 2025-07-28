@@ -52,7 +52,8 @@ export async function uploadFile(
     }
 
     const key = `${basePath}${fileName}`;
-    const url = `https://${BUCKET_NAME}.s3.amazonaws.com/${key}`;
+    // const url = `https://${BUCKET_NAME}.s3.amazonaws.com/${key}`;
+     const url = `https://d2b67d11lk2106.cloudfront.net`;
 
     await s3Client.send(
       new PutObjectCommand({
@@ -154,8 +155,8 @@ export async function uploadMultipleFiles(
           ContentType: file.contentType,
         })
       );
-
-      return `https://${BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
+      const url = `https://d2b67d11lk2106.cloudfront.net/${fileName}`;
+      return url;
     });
 
     return await Promise.all(uploadPromises);
@@ -196,7 +197,7 @@ export async function uploadFileToS3(
     }
 
     const key = `${basePath}${fileName}`;
-    const url = `https://${BUCKET_NAME}.s3.amazonaws.com/${key}`;
+    const url = `https://d2b67d11lk2106.cloudfront.net/${key}`;
 
     await s3Client.send(
       new PutObjectCommand({
@@ -207,7 +208,7 @@ export async function uploadFileToS3(
       })
     );
 
-    return { url: `https://${BUCKET_NAME}.s3.amazonaws.com/${key}`, imageId: key };
+    return { url: url, imageId: key };
   } catch (error) {
     logger.error('Error uploading file to S3:', error);
     throw new Error(`S3 upload failed: ${error.message}`);

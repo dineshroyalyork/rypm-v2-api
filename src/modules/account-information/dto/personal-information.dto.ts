@@ -14,7 +14,7 @@ export const personalInformationSchema = z.object({
   // Demographics
   gender: z.string().min(1, 'Please select your gender'),
   marital_status: z.string().min(1, 'Please select your marital status'),
-  credit_score: z.number().min(300, 'Credit score must be at least 300').max(850, 'Credit score must be at most 850'),
+  credit_score: z.string().optional(),
 
   // Government ID
   government_id_name: z.string().min(1, 'Please select your government ID type'),

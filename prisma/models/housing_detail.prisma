@@ -15,6 +15,7 @@ model housing_details {
   landlord_first_name   String?
   landlord_Last_name    String?
   landlord_phone_number String?
+  landlord_country_code String?
   landlord_email        String?
   rent_amount           Int?
   // For OWNED – with mortgage
