@@ -5,6 +5,14 @@ import { format } from 'date-fns';
 
 const logger = new Logger('AwsUtility');
 
+// Load env variables
+const BUCKET_NAME = process.env.AWS_S3_BUCKET || '';
+const CLOUDFRONT_URL = process.env.AWS_CLOUDFRONT_URL || ''; // New centralized CloudFront URL
+
+if (!BUCKET_NAME || !CLOUDFRONT_URL) {
+  logger.error('Missing AWS S3 configuration. Check environment variables.');
+}
+
 // Initialize S3 client
 const s3Client = new S3Client({
   region: process.env.AWS_S3_REGION || '',
@@ -13,8 +21,6 @@ const s3Client = new S3Client({
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
   },
 });
-
-const BUCKET_NAME = process.env.AWS_S3_BUCKET;
 
 /**
  * Upload a base64 file to S3 with organized folder structure
@@ -26,14 +32,12 @@ export async function uploadFile(
   itemId?: string
 ): Promise<{ url: string; type: string }> {
   try {
-    // Get image type
     const type = await base64FileHeaderMapper(file);
     const base64Data = file.replace(/^data:image\/\w+;base64,/, '');
     const body = fromBase64(base64Data);
 
     const fileName = `${Date.now()}.${type}`;
 
-    // Build organized path based on category
     let basePath = '';
     switch (category) {
       case 'properties':
@@ -52,8 +56,7 @@ export async function uploadFile(
     }
 
     const key = `${basePath}${fileName}`;
-    // const url = `https://${BUCKET_NAME}.s3.amazonaws.com/${key}`;
-     const url = `https://d2b67d11lk2106.cloudfront.net`;
+    const url = `${CLOUDFRONT_URL}/${key}`;
 
     await s3Client.send(
       new PutObjectCommand({
@@ -68,66 +71,6 @@ export async function uploadFile(
   } catch (error) {
     logger.error('Error uploading file to S3:', error);
     throw new Error(`Error uploading image to S3: ${error.message}`);
-  }
-}
-
-/**
- * Helper function to get subcategory based on file type and context
- */
-export function getSubCategory(fileType: string, context?: string): string {
-  const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-  const documentTypes = ['pdf', 'doc', 'docx'];
-
-  if (imageTypes.includes(fileType.toLowerCase())) {
-    return context === 'property' ? 'images' : 'photos';
-  } else if (documentTypes.includes(fileType.toLowerCase())) {
-    return context === 'lease' ? 'signed' : 'agreements';
-  } else if (fileType.toLowerCase() === 'mp4' || fileType.toLowerCase() === 'mov') {
-    return 'videos';
-  }
-
-  return 'documents';
-}
-
-/**
- * Determine file type from base64 data
- */
-export async function base64FileHeaderMapper(fileBase64: string): Promise<string> {
-  // Check if it's a data URL format
-  if (fileBase64.startsWith('data:')) {
-    const matches = fileBase64.match(/^data:([a-zA-Z0-9]+)\/([a-zA-Z0-9]+);base64,/);
-    if (matches) {
-      const fileType = matches[2].toLowerCase();
-      const extensionMap: Record<string, string> = {
-        mpeg: 'mp3',
-        mp3: 'mp3',
-        wav: 'wav',
-        'x-wav': 'wav',
-        ogg: 'ogg',
-        jpeg: 'jpg',
-        jpg: 'jpg',
-        png: 'png',
-        pdf: 'pdf',
-      };
-      return extensionMap[fileType] || 'unknown';
-    }
-  }
-
-  // If not data URL, check binary headers
-  if (fileBase64.startsWith('/9j')) {
-    return 'jpg';
-  } else if (fileBase64.startsWith('iVBOR')) {
-    return 'png';
-  } else if (fileBase64.startsWith('JVBER')) {
-    return 'pdf';
-  } else if (fileBase64.startsWith('SUQz') || fileBase64.startsWith('ID3')) {
-    return 'mp3';
-  } else if (fileBase64.startsWith('UklGR')) {
-    return 'wav';
-  } else if (fileBase64.startsWith('T2dnU')) {
-    return 'ogg';
-  } else {
-    return 'unknown';
   }
 }
 
@@ -155,7 +98,8 @@ export async function uploadMultipleFiles(
           ContentType: file.contentType,
         })
       );
-      const url = `https://d2b67d11lk2106.cloudfront.net/${fileName}`;
+
+      const url = `${CLOUDFRONT_URL}/${fileName}`;
       return url;
     });
 
@@ -177,8 +121,7 @@ export async function uploadFileToS3(
 ): Promise<{ url: string; imageId: string }> {
   try {
     const fileName = `${Date.now()}_${file.originalname}`;
-    
-    // Determine the subpath based on category
+
     let basePath = '';
     switch (category) {
       case 'properties':
@@ -197,7 +140,7 @@ export async function uploadFileToS3(
     }
 
     const key = `${basePath}${fileName}`;
-    const url = `https://d2b67d11lk2106.cloudfront.net/${key}`;
+    const url = `${CLOUDFRONT_URL}/${key}`;
 
     await s3Client.send(
       new PutObjectCommand({
@@ -208,10 +151,60 @@ export async function uploadFileToS3(
       })
     );
 
-    return { url: url, imageId: key };
+    return { url, imageId: key };
   } catch (error) {
     logger.error('Error uploading file to S3:', error);
     throw new Error(`S3 upload failed: ${error.message}`);
   }
 }
 
+/**
+ * Helper function to get subcategory based on file type and context
+ */
+export function getSubCategory(fileType: string, context?: string): string {
+  const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+  const documentTypes = ['pdf', 'doc', 'docx'];
+
+  if (imageTypes.includes(fileType.toLowerCase())) {
+    return context === 'property' ? 'images' : 'photos';
+  } else if (documentTypes.includes(fileType.toLowerCase())) {
+    return context === 'lease' ? 'signed' : 'agreements';
+  } else if (fileType.toLowerCase() === 'mp4' || fileType.toLowerCase() === 'mov') {
+    return 'videos';
+  }
+
+  return 'documents';
+}
+
+/**
+ * Determine file type from base64 data
+ */
+export async function base64FileHeaderMapper(fileBase64: string): Promise<string> {
+  if (fileBase64.startsWith('data:')) {
+    const matches = fileBase64.match(/^data:([a-zA-Z0-9]+)\/([a-zA-Z0-9]+);base64,/);
+    if (matches) {
+      const fileType = matches[2].toLowerCase();
+      const extensionMap: Record<string, string> = {
+        mpeg: 'mp3',
+        mp3: 'mp3',
+        wav: 'wav',
+        'x-wav': 'wav',
+        ogg: 'ogg',
+        jpeg: 'jpg',
+        jpg: 'jpg',
+        png: 'png',
+        pdf: 'pdf',
+      };
+      return extensionMap[fileType] || 'unknown';
+    }
+  }
+
+  if (fileBase64.startsWith('/9j')) return 'jpg';
+  if (fileBase64.startsWith('iVBOR')) return 'png';
+  if (fileBase64.startsWith('JVBER')) return 'pdf';
+  if (fileBase64.startsWith('SUQz') || fileBase64.startsWith('ID3')) return 'mp3';
+  if (fileBase64.startsWith('UklGR')) return 'wav';
+  if (fileBase64.startsWith('T2dnU')) return 'ogg';
+
+  return 'unknown';
+}

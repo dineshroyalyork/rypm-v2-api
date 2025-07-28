@@ -17,34 +17,15 @@ export class AccountInformationController {
   async createOrUpdateAccountInformation(@Request() req: any, @Body() accountInformationDto: AccountInformationDto) {
     const tenant_id = req.user?.sub || req.user?.id;
     const result = await this.accountInformationService.createOrUpdateAccountInformation(tenant_id, accountInformationDto);
-    return {
-      statusCode: 200,
-      success: true,
-      message: 'Account information saved successfully',
-      data: result,
-    };
+    return result; // Return the result directly since service now handles the response format
   }
 
   @Get()
   async getAccountInformation(@Request() req: any, @Query('type') type?: InformationType) {
-    try {
       const tenant_id = (req as any).user?.sub || (req as any).user?.id;
       const result = await this.accountInformationService.getAccountInformation(tenant_id, type);
+     return result;
 
-      return {
-        statusCode: 200,
-        success: true,
-        message: type ? `${type.replace('_', ' ')} retrieved successfully` : 'All account information retrieved successfully',
-        data: result,
-      };
-    } catch (error) {
-      return {
-        statusCode: 500,
-        success: false,
-        message: error.message,
-        data: null,
-      };
-    }
   }
 
   @Post('documents')

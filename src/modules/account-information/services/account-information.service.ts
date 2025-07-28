@@ -1,40 +1,69 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '@/shared/prisma/prisma.service';
 import { PersonalInformationDto, CurrentResidenceDto, AccountInformationDto, SourceOfIncomeDto, ReferenceDetailsDto, PetsDto, VehiclesDto, EmergencyContactDto, BankDetailsDto,DocumentsDto } from '../dto/account-information.dto';
 import { InformationType,SourceOfIncome } from '@/shared/enums/account-details.enum';
 import { uploadFile,uploadFileToS3 } from '@/shared/utils/aws';
+import { WinstonLoggerService } from '@/shared/logger/winston-logger.service';
+
 
 
 @Injectable()
 export class AccountInformationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService,
+    private logger: WinstonLoggerService) {}
 
   async createOrUpdateAccountInformation(tenant_id: string, accountInformationDto: AccountInformationDto) {
     try {
       const { type, data } = accountInformationDto;
+      
+      let result;
       switch (type) {
         case InformationType.PERSONAL_INFORMATION:
-          return await this.createOrUpdatePersonalInformation(tenant_id, data as PersonalInformationDto);
+          result = await this.createOrUpdatePersonalInformation(tenant_id, data as PersonalInformationDto);
+          break;
         case InformationType.CURRENT_RESIDENCE:
-          return await this.createOrUpdateCurrentResidence(tenant_id, data as CurrentResidenceDto);
+          result = await this.createOrUpdateCurrentResidence(tenant_id, data as CurrentResidenceDto);
+          break;
         case InformationType.SOURCE_OF_INCOME:
-          return await this.createOrUpdateSourceOfIncome(tenant_id, data as SourceOfIncomeDto[]);
+          result = await this.createOrUpdateSourceOfIncome(tenant_id, data as SourceOfIncomeDto[]);
+          break;
         case InformationType.REFERENCES:
-          return await this.createOrUpdateReferenceDetails(tenant_id, data as ReferenceDetailsDto);
+          result = await this.createOrUpdateReferenceDetails(tenant_id, data as ReferenceDetailsDto);
+          break;
         case InformationType.PETS:
-          return await this.createOrUpdatePets(tenant_id, data as PetsDto[]);
+          result = await this.createOrUpdatePets(tenant_id, data as PetsDto[]);
+          break;
         case InformationType.VEHICLE_INFORMATION:
-          return await this.createOrUpdateVehicles(tenant_id, data as VehiclesDto);
+          result = await this.createOrUpdateVehicles(tenant_id, data as VehiclesDto);
+          break;
         case InformationType.EMERGENCY_CONTACT:
-          return await this.createOrUpdateEmergencyContact(tenant_id, data as EmergencyContactDto);
+          result = await this.createOrUpdateEmergencyContact(tenant_id, data as EmergencyContactDto);
+          break;
         case InformationType.BANK_DETAILS:
-          return await this.createOrUpdateBankDetails(tenant_id, data as BankDetailsDto);
+          result = await this.createOrUpdateBankDetails(tenant_id, data as BankDetailsDto);
+          break;
         default:
-          throw new Error('Invalid information type');
+          return {
+            statusCode: 400,
+            success: false,
+            message: 'Invalid information type',
+            data: null,
+          };
       }
+      
+      return {
+        statusCode: 200,
+        success: true,
+        message: 'Account information saved successfully',
+        data: result,
+      };
     } catch (error) {
-      if (error instanceof NotFoundException || error instanceof BadRequestException) throw error;
-      throw new Error(`Failed to save account information: ${error.message}`);
+      return {
+        statusCode: 500,
+        success: false,
+        message: `Failed to save account information: ${error.message}`,
+        data: null,
+      };
     }
   }
 
@@ -48,7 +77,7 @@ export class AccountInformationService {
         mobile_number: data.mobile_number,
         gender: data.gender,
         marital_status: data.marital_status,
-        credit_score: data.credit_score,
+        credit_score: data.credit_score , // Convert to string
         government_id_name: data.government_id_name,
         government_id_number: data.government_id_number,
         social_insurance_number: data.social_insurance_number,
@@ -62,8 +91,8 @@ export class AccountInformationService {
         },
       });
     } catch (error) {
-      console.log("123--------",error)
-      throw new Error(`Failed to save personal information: ${error.message}`);
+      this.logger.error('Failed to save current residence:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
     }
   }
 
@@ -97,7 +126,8 @@ export class AccountInformationService {
         },
       });
     } catch (error) {
-      throw new Error(`Failed to save current residence: ${error.message}`);
+      this.logger.error('Failed to save current residence:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
     }
   }
 
@@ -128,7 +158,8 @@ export class AccountInformationService {
       );
       return createdRecords;
     } catch (error) {
-      throw new Error(`Failed to save source of income: ${error.message}`);
+      this.logger.error('Failed to save current residence:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
     }
   }
 
@@ -172,7 +203,8 @@ export class AccountInformationService {
       });
       return await this.prisma.pets.findMany({ where: { tenant_id } });
     } catch (error) {
-      throw new Error(`Failed to save pets: ${error.message}`);
+      this.logger.error('Failed to save current residence:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
     }
   }
 
@@ -195,7 +227,8 @@ export class AccountInformationService {
         },
       });
     } catch (error) {
-      throw new Error(`Failed to save vehicles: ${error.message}`);
+      this.logger.error('Failed to save current residence:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
     }
   }
 
@@ -217,7 +250,8 @@ export class AccountInformationService {
         },
       });
     } catch (error) {
-      throw new Error(`Failed to save emergency contact: ${error.message}`);
+      this.logger.error('Failed to save current residence:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
     }
   }
 
@@ -251,39 +285,59 @@ export class AccountInformationService {
         },
       });
     } catch (error) {
-      throw new Error(`Failed to save bank details: ${error.message}`);
+      this.logger.error('Failed to save current residence:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
     }
   }
 
   async getAccountInformation(tenant_id: string, type?: InformationType) {
     try {
+      let result;
       switch (type) {
         case InformationType.PERSONAL_INFORMATION:
-          return await this.getPersonalInformation(tenant_id);
+          result = await this.getPersonalInformation(tenant_id);
+          break;
         case InformationType.CURRENT_RESIDENCE:
-          return await this.getCurrentResidence(tenant_id);
+          result = await this.getCurrentResidence(tenant_id);
+          break;
         case InformationType.SOURCE_OF_INCOME:
-          return await this.getSourceOfIncome(tenant_id);
+          result = await this.getSourceOfIncome(tenant_id);
+          break;
         case InformationType.REFERENCES:
-          return await this.getReferenceDetails(tenant_id);
+          result = await this.getReferenceDetails(tenant_id);
+          break;
         case InformationType.PETS:
-          return await this.getPets(tenant_id);
+          result = await this.getPets(tenant_id);
+          break;
         case InformationType.VEHICLE_INFORMATION:
-          return await this.getVehicles(tenant_id);
+          result = await this.getVehicles(tenant_id);
+          break;
         case InformationType.EMERGENCY_CONTACT:
-          return await this.getEmergencyContact(tenant_id);
+          result = await this.getEmergencyContact(tenant_id);
+          break;
         case InformationType.BANK_DETAILS:
-          return await this.getBankDetails(tenant_id);
+          result = await this.getBankDetails(tenant_id);
+          break;
         case InformationType.DOCUMENTS:
-          return await this.getDocuments(tenant_id);
+          result = await this.getDocuments(tenant_id);
+          break;
         case InformationType.INTRODUCTORY_VIDEO:
-          return await this.getIntroductoryVideo(tenant_id);
+          result = await this.getIntroductoryVideo(tenant_id);
+          break;
         default:
-          return await this.getAllAccountInformation(tenant_id);
+          result = await this.getAllAccountInformation(tenant_id);
+          break;
       }
+      
+      return {
+        statusCode: 200,
+        success: true,
+        message: type ? `${type.replace(/_/g, ' ').toLowerCase()} retrieved successfully` : 'All account information retrieved successfully',
+        data: result,
+      };
     } catch (error) {
-      if (error instanceof NotFoundException || error instanceof BadRequestException) throw error;
-      throw new Error(`Failed to get account information: ${error.message}`);
+      this.logger.error('Failed to get account information:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
     }
   }
 
