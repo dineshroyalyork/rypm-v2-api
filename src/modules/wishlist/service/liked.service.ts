@@ -52,7 +52,7 @@ export class LikedService {
         return {
           statusCode: 200,
           success: true,
-          message: 'No liked list found for tenant. Nothing to remove.',
+          message: 'No liked list found for tenant. Nothing to remove .',
         };
       }
 
