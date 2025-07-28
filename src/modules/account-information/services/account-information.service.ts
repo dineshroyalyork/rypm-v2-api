@@ -110,6 +110,7 @@ export class AccountInformationService {
         landlord_first_name: data.landlord_first_name,
         landlord_Last_name: data.landlord_Last_name,
         landlord_phone_number: data.landlord_phone_number,
+        landlord_country_code: data.landlord_country_code,
         landlord_email: data.landlord_email,
         rent_amount: data.rent_amount,
         mortgage_amount: data.mortgage_amount,
