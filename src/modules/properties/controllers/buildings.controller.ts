@@ -1,14 +1,16 @@
 // src/modules/properties/controllers/buildings.controller.ts
-import { Body, Controller, ParseFilePipe, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, ParseFilePipe, Post, UploadedFile, UseInterceptors, UsePipes } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { CreateBuildingDto } from '../dto/create-building.dto';
+import { CreateBuildingDto, createBuildingSchema } from '../dto/create-building.dto';
 import { BuildingsService } from '../services/buildings.service';
+import { ZodValidationPipe } from 'nestjs-zod';
 
 @Controller({ path: 'buildings', version: '2' })
 export class BuildingsController {
   constructor(private readonly buildingsService: BuildingsService) {}
 
   @Post()
+  @UsePipes(new ZodValidationPipe(createBuildingSchema))
   async create(@Body() createBuildingDto: CreateBuildingDto) {
     return this.buildingsService.create(createBuildingDto);
   }
