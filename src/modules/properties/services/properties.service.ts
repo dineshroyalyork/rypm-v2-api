@@ -297,57 +297,62 @@ export class PropertiesService {
   };
 
   private transformZohoToPrisma(zohoData: CreatePropertyDto) {
-    const propertyData: Record<string, any> = {};
-    const propertyDetailsData: Record<string, any> = {};
-    const rawData: Record<string, any> = {};
+    try {
+      const propertyData: Record<string, any> = {};
+      const propertyDetailsData: Record<string, any> = {};
+      const rawData: Record<string, any> = {};
 
-    // Fields that should be stored as strings in the DB, but may come as booleans from Zoho
-    const booleanToStringFields = new Set(['hvac_inclusion']);
+      // Fields that should be stored as strings in the DB, but may come as booleans from Zoho
+      const booleanToStringFields = new Set(['hvac_inclusion']);
 
-    for (const [zohoKey, value] of Object.entries(zohoData)) {
-      const prismaKey = PropertiesService.zohoToPrismaMap[zohoKey];
+      for (const [zohoKey, value] of Object.entries(zohoData)) {
+        const prismaKey = PropertiesService.zohoToPrismaMap[zohoKey];
 
-      if (prismaKey) {
-        // Convert boolean to string for specific fields
-        let processedValue = value;
-        if (booleanToStringFields.has(prismaKey) && typeof value === 'boolean') {
-          processedValue = value ? 'true' : 'false';
-        } else if (
-          ['owner', 'territory', 'associated_building', 'associated_portfolios', 'created_by', 'modified_by'].includes(prismaKey) &&
-          value &&
-          typeof value === 'string'
-        ) {
-          // Convert string ID to object format for CSV data
-          processedValue = {
-            id: value,
-            name: '',
-            email: '',
-          };
-        } else if (
-          ['owner', 'territory', 'associated_building', 'associated_portfolios', 'created_by', 'modified_by'].includes(prismaKey) &&
-          value &&
-          typeof value === 'object'
-        ) {
-          processedValue = value;
-        }
+        if (prismaKey) {
+          // Convert boolean to string for specific fields
+          let processedValue = value;
+          if (booleanToStringFields.has(prismaKey) && typeof value === 'boolean') {
+            processedValue = value ? 'true' : 'false';
+          } else if (
+            ['owner', 'territory', 'associated_building', 'associated_portfolios', 'created_by', 'modified_by'].includes(prismaKey) &&
+            value &&
+            typeof value === 'string'
+          ) {
+            // Convert string ID to object format for CSV data
+            processedValue = {
+              id: value,
+              name: '',
+              email: '',
+            };
+          } else if (
+            ['owner', 'territory', 'associated_building', 'associated_portfolios', 'created_by', 'modified_by'].includes(prismaKey) &&
+            value &&
+            typeof value === 'object'
+          ) {
+            processedValue = value;
+          }
 
-        // Split data between property and property_details tables
-        if (PropertiesService.propertyFields.has(prismaKey)) {
-          propertyData[prismaKey] = processedValue;
+          // Split data between property and property_details tables
+          if (PropertiesService.propertyFields.has(prismaKey)) {
+            propertyData[prismaKey] = processedValue;
+          } else {
+            propertyDetailsData[prismaKey] = processedValue;
+          }
         } else {
-          propertyDetailsData[prismaKey] = processedValue;
+          rawData[zohoKey] = value;
         }
-      } else {
-        rawData[zohoKey] = value;
       }
-    }
 
-    // Add raw_data to property_details
-    if (Object.keys(rawData).length > 0) {
-      propertyDetailsData.raw_data = rawData;
-    }
+      // Add raw_data to property_details
+      if (Object.keys(rawData).length > 0) {
+        propertyDetailsData.raw_data = rawData;
+      }
 
-    return { propertyData, propertyDetailsData };
+      return { propertyData, propertyDetailsData };
+    } catch (error) {
+      console.error('Failed to transform Zoho to Prisma data:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
+    }
   }
 
   /**
@@ -355,88 +360,93 @@ export class PropertiesService {
    * This method handles CSV-specific data type conversions without affecting the existing create API
    */
   private transformCsvData(csvRecord: Record<string, any>) {
-    // First, map CSV field names to Prisma field names using the existing mapping
-    const mappedRecord: Record<string, any> = {};
+    try {
+      // First, map CSV field names to Prisma field names using the existing mapping
+      const mappedRecord: Record<string, any> = {};
 
-    for (const [csvField, value] of Object.entries(csvRecord)) {
-      const prismaField = PropertiesService.zohoToPrismaMap[csvField];
-      if (prismaField) {
-        mappedRecord[prismaField] = value;
-      } else {
-        // Keep original field name if no mapping exists
-        mappedRecord[csvField] = value;
-      }
-    }
-
-    const transformedRecord = { ...mappedRecord };
-
-    // Convert string booleans to actual booleans - include all boolean fields from CSV
-    const booleanFields = [
-      'fireplace',
-      'fireplace_bedroom',
-      'den_can_be_used_as_a_bedroom',
-      'upgraded_bathrooms',
-      'heated_floors',
-      'dishwasher',
-      'upgraded_kitchen',
-      'washer_dryer_in_unit',
-      'upgraded_back_splash',
-      'new_ice_maker',
-    ];
-
-    booleanFields.forEach(field => {
-      if (transformedRecord[field] !== undefined && transformedRecord[field] !== null) {
-        const value = String(transformedRecord[field]).toLowerCase().trim();
-        if (value === 'true' || value === 'yes' || value === '1') {
-          transformedRecord[field] = true;
-        } else if (value === 'false' || value === 'no' || value === '0' || value === 'no den') {
-          transformedRecord[field] = false;
-        } else if (value === 'n/a - basement does not exist' || value === 'n/a' || value === '') {
-          transformedRecord[field] = null;
+      for (const [csvField, value] of Object.entries(csvRecord)) {
+        const prismaField = PropertiesService.zohoToPrismaMap[csvField];
+        if (prismaField) {
+          mappedRecord[prismaField] = value;
         } else {
-          // For any other string value, convert to null to avoid type errors
-          transformedRecord[field] = null;
+          // Keep original field name if no mapping exists
+          mappedRecord[csvField] = value;
         }
       }
-    });
 
-    // Convert numeric strings to numbers - only for fields that are actually Int in the schema
-    const numericFields = ['total_area_sq_ft', 'number_of_floors', 'marketed_price'];
+      const transformedRecord = { ...mappedRecord };
 
-    numericFields.forEach(field => {
-      if (transformedRecord[field] !== undefined && transformedRecord[field] !== null) {
-        const value = String(transformedRecord[field]).trim();
-        if (value && value !== 'n/a' && value !== 'N/A' && !isNaN(Number(value))) {
-          transformedRecord[field] = Number(value);
-        } else if (value === 'n/a' || value === 'N/A' || value === '') {
-          transformedRecord[field] = null;
+      // Convert string booleans to actual booleans - include all boolean fields from CSV
+      const booleanFields = [
+        'fireplace',
+        'fireplace_bedroom',
+        'den_can_be_used_as_a_bedroom',
+        'upgraded_bathrooms',
+        'heated_floors',
+        'dishwasher',
+        'upgraded_kitchen',
+        'washer_dryer_in_unit',
+        'upgraded_back_splash',
+        'new_ice_maker',
+      ];
+
+      booleanFields.forEach(field => {
+        if (transformedRecord[field] !== undefined && transformedRecord[field] !== null) {
+          const value = String(transformedRecord[field]).toLowerCase().trim();
+          if (value === 'true' || value === 'yes' || value === '1') {
+            transformedRecord[field] = true;
+          } else if (value === 'false' || value === 'no' || value === '0' || value === 'no den') {
+            transformedRecord[field] = false;
+          } else if (value === 'n/a - basement does not exist' || value === 'n/a' || value === '') {
+            transformedRecord[field] = null;
+          } else {
+            // For any other string value, convert to null to avoid type errors
+            transformedRecord[field] = null;
+          }
+        }
+      });
+
+      // Convert numeric strings to numbers - only for fields that are actually Int in the schema
+      const numericFields = ['total_area_sq_ft', 'number_of_floors', 'marketed_price'];
+
+      numericFields.forEach(field => {
+        if (transformedRecord[field] !== undefined && transformedRecord[field] !== null) {
+          const value = String(transformedRecord[field]).trim();
+          if (value && value !== 'n/a' && value !== 'N/A' && !isNaN(Number(value))) {
+            transformedRecord[field] = Number(value);
+          } else if (value === 'n/a' || value === 'N/A' || value === '') {
+            transformedRecord[field] = null;
+          }
+        }
+      });
+
+      // Convert float fields to numbers
+      const floatFields = ['exchange_rate'];
+
+      floatFields.forEach(field => {
+        if (transformedRecord[field] !== undefined && transformedRecord[field] !== null) {
+          const value = String(transformedRecord[field]).trim();
+          if (value && value !== 'n/a' && value !== 'N/A' && !isNaN(Number(value))) {
+            transformedRecord[field] = Number(value);
+          } else if (value === 'n/a' || value === 'N/A' || value === '') {
+            transformedRecord[field] = null;
+          }
+        }
+      });
+
+      // Handle special cases for basement_details
+      if (transformedRecord.basement_details) {
+        const value = String(transformedRecord.basement_details).trim();
+        if (value === 'N/A - Basement does not exist' || value === 'n/a - basement does not exist') {
+          transformedRecord.basement_details = null;
         }
       }
-    });
 
-    // Convert float fields to numbers
-    const floatFields = ['exchange_rate'];
-
-    floatFields.forEach(field => {
-      if (transformedRecord[field] !== undefined && transformedRecord[field] !== null) {
-        const value = String(transformedRecord[field]).trim();
-        if (value && value !== 'n/a' && value !== 'N/A' && !isNaN(Number(value))) {
-          transformedRecord[field] = Number(value);
-        } else if (value === 'n/a' || value === 'N/A' || value === '') {
-          transformedRecord[field] = null;
-        }
-      }
-    });
-
-    // Handle special cases for basement_details
-    if (transformedRecord.basement_details) {
-      const value = String(transformedRecord.basement_details).trim();
-      if (value === 'N/A - Basement does not exist' || value === 'n/a - basement does not exist') {
-        transformedRecord.basement_details = null;
-      }
+      return transformedRecord;
+    } catch (error) {
+      console.error('Failed to transform CSV data:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
     }
-
-    return transformedRecord;
   }
 
   async create(args: CreatePropertyDto) {
@@ -458,18 +468,16 @@ export class PropertiesService {
 
       return {
         statusCode: 201,
+        success: true,
+        message: 'Property created successfully',
         data: {
           property,
           property_details: propertyDetails,
         },
       };
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        throw new BadRequestException(error.message);
-      } else {
-        console.error('Internal server error:', error);
-        throw new InternalServerErrorException('Internal server error');
-      }
+      console.error('Failed to create property:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
     }
   }
 
@@ -530,343 +538,359 @@ export class PropertiesService {
         data: upserted,
       };
     } catch (error) {
-      throw new InternalServerErrorException(error.message);
+      console.error('Failed to save or clear rental preferences:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
     }
   }
 
   async getRentalPreferences(tenant_id: string) {
-    const rentalPref = await this.prisma.rental_preference.findUnique({
-      where: { tenant_id },
-    });
-    if (!rentalPref) {
-      return {
-        statusCode: 200,
-        success: true,
-        message: 'No rental preferences found for tenant',
-        data: null,
-      };
-    }
-    return {
-      statusCode: 200,
-      success: true,
-      message: 'Rental preferences fetched successfully',
-      data: rentalPref,
-    };
-  }
-
-  async getAllPropertiesSummary(query: GetPropertiesSummaryDto) {
-    const {
-      tenant_id,
-      page_number = '1',
-      page_size = '10',
-      search,
-      bedrooms,
-      bathrooms,
-      parking,
-      min_price,
-      max_price,
-      property_type,
-      move_in_date,
-      latitude,
-      longitude,
-      radius,
-    } = query;
-
-    let where: any = {};
-
-    // Handle rental preference filtering
-    if (tenant_id) {
+    try {
       const rentalPref = await this.prisma.rental_preference.findUnique({
         where: { tenant_id },
       });
+      if (!rentalPref) {
+        return {
+          statusCode: 200,
+          success: true,
+          message: 'No rental preferences found for tenant',
+          data: null,
+        };
+      }
+      return {
+        statusCode: 200,
+        success: true,
+        message: 'Rental preferences fetched successfully',
+        data: rentalPref,
+      };
+    } catch (error) {
+      console.error('Failed to get rental preferences:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
+    }
+  }
 
-      if (rentalPref) {
-        const moveInDateFilter = rentalPref.move_in_date
-          ? {
-              property_details: {
-                earliest_move_in_date: {
-                  gte: new Date(new Date(rentalPref.move_in_date).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-                  lte: new Date(new Date(rentalPref.move_in_date).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-                },
-              },
-            }
-          : {};
+  async getAllPropertiesSummary(query: GetPropertiesSummaryDto) {
+    try {
+      const {
+        tenant_id,
+        page_number = '1',
+        page_size = '10',
+        search,
+        bedrooms,
+        bathrooms,
+        parking,
+        min_price,
+        max_price,
+        property_type,
+        move_in_date,
+        latitude,
+        longitude,
+        radius,
+      } = query;
 
-        where = {
-          ...(rentalPref.bedrooms && { bedrooms: { gte: rentalPref.bedrooms } }),
-          ...(rentalPref.bathrooms && { bathrooms: { gte: rentalPref.bathrooms } }),
-          ...(rentalPref.parking && {
-            property_details: {
-              number_of_parking_spaces: { gte: rentalPref.parking },
-            },
-          }),
-          ...(rentalPref.price_min || rentalPref.price_max
+      let where: any = {};
+
+      // Handle rental preference filtering
+      if (tenant_id) {
+        const rentalPref = await this.prisma.rental_preference.findUnique({
+          where: { tenant_id },
+        });
+
+        if (rentalPref) {
+          const moveInDateFilter = rentalPref.move_in_date
             ? {
-                marketed_price: {
-                  ...(rentalPref.price_min && { gte: Number(rentalPref.price_min) }),
-                  ...(rentalPref.price_max && { lte: Number(rentalPref.price_max) }),
+                property_details: {
+                  earliest_move_in_date: {
+                    gte: new Date(new Date(rentalPref.move_in_date).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+                    lte: new Date(new Date(rentalPref.move_in_date).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                  },
                 },
               }
-            : {}),
-          ...moveInDateFilter,
-        };
-      }
-    } else {
-      if (bedrooms) where.bedrooms = { gte: bedrooms.toString() };
-      if (bathrooms) where.bathrooms = { gte: bathrooms.toString() };
-      if (search) where.name = { contains: search, mode: 'insensitive' };
-      if (parking) {
-        where.property_details = {
-          ...(where.property_details || {}),
-          number_of_parking_spaces: { gte: Number(parking) },
-        };
-      }
-      if (min_price || max_price) {
-        where.marketed_price = {};
-        if (min_price) where.marketed_price.gte = Number(min_price);
-        if (max_price) where.marketed_price.lte = Number(max_price);
-      }
-      if (move_in_date) {
-        const moveIn = new Date(move_in_date);
-        const moveInPlus7 = new Date(moveIn);
-        moveInPlus7.setDate(moveIn.getDate() + 7);
+            : {};
 
-        where.property_details = {
-          ...(where.property_details || {}),
-          earliest_move_in_date: {
-            gte: moveIn.toISOString(),
-            lte: moveInPlus7.toISOString(),
-          },
-        };
+          where = {
+            ...(rentalPref.bedrooms && { bedrooms: { gte: rentalPref.bedrooms } }),
+            ...(rentalPref.bathrooms && { bathrooms: { gte: rentalPref.bathrooms } }),
+            ...(rentalPref.parking && {
+              property_details: {
+                number_of_parking_spaces: { gte: rentalPref.parking },
+              },
+            }),
+            ...(rentalPref.price_min || rentalPref.price_max
+              ? {
+                  marketed_price: {
+                    ...(rentalPref.price_min && { gte: Number(rentalPref.price_min) }),
+                    ...(rentalPref.price_max && { lte: Number(rentalPref.price_max) }),
+                  },
+                }
+              : {}),
+            ...moveInDateFilter,
+          };
+        }
+      } else {
+        if (bedrooms) where.bedrooms = { gte: bedrooms.toString() };
+        if (bathrooms) where.bathrooms = { gte: bathrooms.toString() };
+        if (search) where.name = { contains: search, mode: 'insensitive' };
+        if (parking) {
+          where.property_details = {
+            ...(where.property_details || {}),
+            number_of_parking_spaces: { gte: Number(parking) },
+          };
+        }
+        if (min_price || max_price) {
+          where.marketed_price = {};
+          if (min_price) where.marketed_price.gte = Number(min_price);
+          if (max_price) where.marketed_price.lte = Number(max_price);
+        }
+        if (move_in_date) {
+          const moveIn = new Date(move_in_date);
+          const moveInPlus7 = new Date(moveIn);
+          moveInPlus7.setDate(moveIn.getDate() + 7);
+
+          where.property_details = {
+            ...(where.property_details || {}),
+            earliest_move_in_date: {
+              gte: moveIn.toISOString(),
+              lte: moveInPlus7.toISOString(),
+            },
+          };
+        }
       }
-    }
 
-    // Calculate new property threshold
-    const lastWeek = new Date();
-    lastWeek.setDate(lastWeek.getDate() - 7);
+      // Calculate new property threshold
+      const lastWeek = new Date();
+      lastWeek.setDate(lastWeek.getDate() - 7);
 
-    let allProperties = await this.prisma.properties.findMany({
-      where,
-      select: {
-        id: true,
-        name: true,
-        bedrooms: true,
-        bathrooms: true,
-        updated_at: true,
-        latitude: true,
-        longitude: true,
-        marketed_price: true,
-        thumbnail_image: true,
-        property_details: {
-          select: {
-            number_of_parking_spaces: true,
+      let allProperties = await this.prisma.properties.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          bedrooms: true,
+          bathrooms: true,
+          updated_at: true,
+          latitude: true,
+          longitude: true,
+          marketed_price: true,
+          thumbnail_image: true,
+          property_details: {
+            select: {
+              number_of_parking_spaces: true,
+            },
           },
         },
-      },
-    });
-
-    // Mark liked & new
-    const likedIds = tenant_id
-      ? new Set(
-          (
-            await this.prisma.liked.findUnique({
-              where: { tenant_id },
-              select: { property_ids: true },
-            })
-          )?.property_ids || []
-        )
-      : new Set();
-
-    let dataWithLiked = allProperties.map(prop => ({
-      ...prop,
-      liked: tenant_id ? likedIds.has(prop.id) : undefined,
-      is_new_property: new Date(prop.updated_at) >= lastWeek,
-    }));
-
-    // Geo filter
-    if (latitude && longitude && radius) {
-      const lat = Number(latitude);
-      const lon = Number(longitude);
-      const rad = Number(radius);
-
-      dataWithLiked = dataWithLiked.filter(prop => {
-        if (prop.latitude && prop.longitude) {
-          const distance = getDistance({ latitude: lat, longitude: lon }, { latitude: Number(prop.latitude), longitude: Number(prop.longitude) });
-          return distance <= rad * 1000;
-        }
-        return false;
       });
+
+      // Mark liked & new
+      const likedIds = tenant_id
+        ? new Set(
+            (
+              await this.prisma.liked.findUnique({
+                where: { tenant_id },
+                select: { property_ids: true },
+              })
+            )?.property_ids || []
+          )
+        : new Set();
+
+      let dataWithLiked = allProperties.map(prop => ({
+        ...prop,
+        liked: tenant_id ? likedIds.has(prop.id) : undefined,
+        is_new_property: new Date(prop.updated_at) >= lastWeek,
+      }));
+
+      // Geo filter
+      if (latitude && longitude && radius) {
+        const lat = Number(latitude);
+        const lon = Number(longitude);
+        const rad = Number(radius);
+
+        dataWithLiked = dataWithLiked.filter(prop => {
+          if (prop.latitude && prop.longitude) {
+            const distance = getDistance({ latitude: lat, longitude: lon }, { latitude: Number(prop.latitude), longitude: Number(prop.longitude) });
+            return distance <= rad * 1000;
+          }
+          return false;
+        });
+      }
+
+      const total_count = dataWithLiked.length;
+
+      // Manual pagination after filtering
+      const paginated = dataWithLiked.slice((Number(page_number) - 1) * Number(page_size), Number(page_number) * Number(page_size));
+
+      return {
+        statusCode: 200,
+        success: true,
+        message: 'Properties fetched successfully',
+        data: paginated,
+        total_count,
+        page_number,
+        page_size,
+      };
+    } catch (error) {
+      console.error('Failed to get all properties summary:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
     }
-
-    const total_count = dataWithLiked.length;
-
-    // Manual pagination after filtering
-    const paginated = dataWithLiked.slice((Number(page_number) - 1) * Number(page_size), Number(page_number) * Number(page_size));
-
-    return {
-      statusCode: 200,
-      success: true,
-      message: 'Properties fetched successfully',
-      data: paginated,
-      total_count,
-      page_number,
-      page_size,
-    };
   }
 
   async getPropertyById(property_id: string, tenant_id?: string) {
-    const property = await this.prisma.properties.findUnique({
-      where: { id: property_id },
-      select: {
-        id: true,
-        name: true,
-        thumbnail_image: true,
-        property_attachments: true,
-        bedrooms: true,
-        bathrooms: true,
-        property_condition: true,
-        basement_details: true,
-        basement_included: true,
-        total_area_sq_ft: true,
-        number_of_floors: true,
-        fireplace: true,
-        window_coverings: true,
-        flooring_common_area: true,
-        ceiling_hight: true,
-        bedroom_layout: true,
-        closets: true,
-        en_suite_bathrooms: true,
-        fireplace_bedroom: true,
-        den_can_be_used_as_a_bedroom: true,
-        shower_type: true,
-        upgraded_bathrooms: true,
-        countertops_bathroom: true,
-        central_hvac: true,
-        heating_ac_unit: true,
-        heated_floors: true,
-        washer_dryer: true,
-        furnace: true,
-        hot_water_heater_manufacturer: true,
-        washer_and_dryer: true,
-        air_conditioning_manufacturer: true,
-        countertops: true,
-        dishwasher: true,
-        upgraded_kitchen: true,
-        appliance_finishes: true,
-        new_ice_maker: true,
-        upgraded_back_splash: true,
-        refrigerator_manufacture: true,
-        stove_oven: true,
-        dishwasher_manufacture: true,
-        microwave_manufacture: true,
-        cooktop_manufacture: true,
-        ventilation_hood_manufacture: true,
-        latitude: true,
-        longitude: true,
-        associated_building: true,
-        marketed_price: true,
-        property_details: {
-          select: {
-            earliest_move_in_date: true,
-            hot_water_tank_provider: true,
-            refrigerator_manufacture: true,
-            microwave_manufacture: true,
-            unit_category: true,
-            meta_description: true,
-            lawn_and_snow_care: true,
+    try {
+      const property = await this.prisma.properties.findUnique({
+        where: { id: property_id },
+        select: {
+          id: true,
+          name: true,
+          thumbnail_image: true,
+          property_attachments: true,
+          bedrooms: true,
+          bathrooms: true,
+          property_condition: true,
+          basement_details: true,
+          basement_included: true,
+          total_area_sq_ft: true,
+          number_of_floors: true,
+          fireplace: true,
+          window_coverings: true,
+          flooring_common_area: true,
+          ceiling_hight: true,
+          bedroom_layout: true,
+          closets: true,
+          en_suite_bathrooms: true,
+          fireplace_bedroom: true,
+          den_can_be_used_as_a_bedroom: true,
+          shower_type: true,
+          upgraded_bathrooms: true,
+          countertops_bathroom: true,
+          central_hvac: true,
+          heating_ac_unit: true,
+          heated_floors: true,
+          washer_dryer: true,
+          furnace: true,
+          hot_water_heater_manufacturer: true,
+          washer_and_dryer: true,
+          air_conditioning_manufacturer: true,
+          countertops: true,
+          dishwasher: true,
+          upgraded_kitchen: true,
+          appliance_finishes: true,
+          new_ice_maker: true,
+          upgraded_back_splash: true,
+          refrigerator_manufacture: true,
+          stove_oven: true,
+          dishwasher_manufacture: true,
+          microwave_manufacture: true,
+          cooktop_manufacture: true,
+          ventilation_hood_manufacture: true,
+          latitude: true,
+          longitude: true,
+          associated_building: true,
+          marketed_price: true,
+          property_details: {
+            select: {
+              earliest_move_in_date: true,
+              hot_water_tank_provider: true,
+              refrigerator_manufacture: true,
+              microwave_manufacture: true,
+              unit_category: true,
+              meta_description: true,
+              lawn_and_snow_care: true,
+            },
           },
         },
-      },
-    });
-    if (!property) {
+      });
+      if (!property) {
+        return {
+          statusCode: 404,
+          success: false,
+          message: 'Property not found',
+          data: null,
+        };
+      }
+      let liked = false;
+      if (tenant_id) {
+        const likedList = await this.prisma.liked.findUnique({
+          where: { tenant_id },
+          select: { property_ids: true },
+        });
+        liked = likedList ? likedList.property_ids.includes(property_id) : false;
+      }
+      // Fetch building info if associated_building.id exists
+      let building: any = null;
+      const ab = property?.associated_building;
+      let buildingId: string | undefined;
+      if (ab && typeof ab === 'object' && ab !== null && 'id' in ab && typeof ab.id === 'string') {
+        buildingId = ab.id;
+      }
+      if (buildingId) {
+        building = await this.prisma.buildings.findFirst({
+          where: { building_property_id: buildingId },
+          select: {
+            address: true,
+            city: true,
+            province: true,
+            country: true,
+            postal_code: true,
+            category: true,
+            date_of_construction: true,
+            corporation_number: true,
+            concierge_building_management_info: true,
+            keyless_entry: true,
+            enter_phone_system: true,
+            onsite_staff: true,
+            elevators: true,
+            security_onsite: true,
+            concierge_service: true,
+            has_bicycle_storage: true,
+            wheelchair_access: true,
+            has_guest_suites: true,
+            laundry_facilities: true,
+            pet_spa: true,
+            outdoor_patio: true,
+            has_rooftop_patio: true,
+            outdoor_child_play_area: true,
+            has_outdoor_pool: true,
+            has_cabana: true,
+            has_tennis_court: true,
+            remote_garage: true,
+            visitor_parking: true,
+            parking_garage: true,
+            has_subway_access: true,
+            public_transit: true,
+            car_wash: true,
+            electric_car_charging_stations: true,
+            has_meeting_room: true,
+            has_yoga_room: true,
+            rec_room: true,
+            has_game_room: true,
+            has_party_room: true,
+            library: true,
+            has_movie_theater: true,
+            has_billiards_room: true,
+            has_whirlpool: true,
+            has_steam_room: true,
+            has_sauna: true,
+            has_basketball_court: true,
+            has_pool: true,
+            has_ventilation_hood: true,
+            piano_lounge: true,
+            has_bowling_alley: true,
+            indoor_child_play_area: true,
+            has_golf_range: true,
+            gym: true,
+            barbecue_area: true,
+          },
+        });
+      }
       return {
-        statusCode: 404,
-        success: false,
-        message: 'Property not found',
-        data: null,
+        statusCode: 200,
+        success: true,
+        message: 'Property fetched successfully',
+        data: { ...property, liked, building },
       };
+    } catch (error) {
+      console.error('Failed to get property by ID:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
     }
-    let liked = false;
-    if (tenant_id) {
-      const likedList = await this.prisma.liked.findUnique({
-        where: { tenant_id },
-        select: { property_ids: true },
-      });
-      liked = likedList ? likedList.property_ids.includes(property_id) : false;
-    }
-    // Fetch building info if associated_building.id exists
-    let building: any = null;
-    const ab = property?.associated_building;
-    let buildingId: string | undefined;
-    if (ab && typeof ab === 'object' && ab !== null && 'id' in ab && typeof ab.id === 'string') {
-      buildingId = ab.id;
-    }
-    if (buildingId) {
-      building = await this.prisma.buildings.findFirst({
-        where: { building_property_id: buildingId },
-        select: {
-          address: true,
-          city: true,
-          province: true,
-          country: true,
-          postal_code: true,
-          category: true,
-          date_of_construction: true,
-          corporation_number: true,
-          concierge_building_management_info: true,
-          keyless_entry: true,
-          enter_phone_system: true,
-          onsite_staff: true,
-          elevators: true,
-          security_onsite: true,
-          concierge_service: true,
-          has_bicycle_storage: true,
-          wheelchair_access: true,
-          has_guest_suites: true,
-          laundry_facilities: true,
-          pet_spa: true,
-          outdoor_patio: true,
-          has_rooftop_patio: true,
-          outdoor_child_play_area: true,
-          has_outdoor_pool: true,
-          has_cabana: true,
-          has_tennis_court: true,
-          remote_garage: true,
-          visitor_parking: true,
-          parking_garage: true,
-          has_subway_access: true,
-          public_transit: true,
-          car_wash: true,
-          electric_car_charging_stations: true,
-          has_meeting_room: true,
-          has_yoga_room: true,
-          rec_room: true,
-          has_game_room: true,
-          has_party_room: true,
-          library: true,
-          has_movie_theater: true,
-          has_billiards_room: true,
-          has_whirlpool: true,
-          has_steam_room: true,
-          has_sauna: true,
-          has_basketball_court: true,
-          has_pool: true,
-          has_ventilation_hood: true,
-          piano_lounge: true,
-          has_bowling_alley: true,
-          indoor_child_play_area: true,
-          has_golf_range: true,
-          gym: true,
-          barbecue_area: true,
-        },
-      });
-    }
-    return {
-      statusCode: 200,
-      success: true,
-      message: 'Property fetched successfully',
-      data: { ...property, liked, building },
-    };
   }
   async importFromCsv(csvData: string) {
     try {
