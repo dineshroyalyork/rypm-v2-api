@@ -6,6 +6,7 @@ import { parseCsvStringToJson } from '../../../../shared/utils/csv';
 import { CreatePropertyDto } from '../dto/create-property.dto';
 import { RentalPreferencesDto } from '../dto/rental-preferences.dto';
 import { getDistance } from 'geolib';
+import { GetPropertiesSummaryDto } from '../dto/get-properties-summary.dto';
 export type PropertyType = (typeof ALLOWED_PROPERTY_TYPES)[number];
 
 @Injectable()
@@ -553,22 +554,24 @@ export class PropertiesService {
     };
   }
 
-  async getAllPropertiesSummary(
-    tenant_id?: string,
-    page_number = 1,
-    page_size = 10,
-    search?: string,
-    bedrooms?: string,
-    bathrooms?: string,
-    parking?: string,
-    min_price?: string,
-    max_price?: string,
-    property_type?: string,
-    move_in_date?: string,
-    latitude?: string,
-    longitude?: string,
-    radius?: string
-  ) {
+  async getAllPropertiesSummary(query: GetPropertiesSummaryDto) {
+    const {
+      tenant_id,
+      page_number = '1',
+      page_size = '10',
+      search,
+      bedrooms,
+      bathrooms,
+      parking,
+      min_price,
+      max_price,
+      property_type,
+      move_in_date,
+      latitude,
+      longitude,
+      radius,
+    } = query;
+
     let where: any = {};
 
     // Handle rental preference filtering
@@ -698,7 +701,7 @@ export class PropertiesService {
     const total_count = dataWithLiked.length;
 
     // Manual pagination after filtering
-    const paginated = dataWithLiked.slice((page_number - 1) * page_size, page_number * page_size);
+    const paginated = dataWithLiked.slice((Number(page_number) - 1) * Number(page_size), Number(page_number) * Number(page_size));
 
     return {
       statusCode: 200,
