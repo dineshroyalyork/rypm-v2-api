@@ -607,4 +607,68 @@ export class AccountInformationService {
       throw new Error(`Failed to save document: ${error.message}`);
     }
   }
+
+  async deleteDocument(tenant_id: string, type: string, sub_type?: string) {
+    try {
+      // Find the document to delete using the correct unique constraint
+      const document = await this.prisma.document.findUnique({
+        where: {
+          tenant_id_sub_type: {
+            tenant_id,
+            sub_type: sub_type || '',
+          },
+        },
+      });
+
+      if (!document) {
+        return {
+          statusCode: 404,
+          success: false,
+          message: 'Document not found',
+          data: null,
+        };
+      }
+
+      // Verify the document type matches
+      if (document.type !== type) {
+        return {
+          statusCode: 404,
+          success: false,
+          message: 'Document not found with specified type',
+          data: null,
+        };
+      }
+
+      // Delete the document from database
+      await this.prisma.document.delete({
+        where: {
+          tenant_id_sub_type: {
+            tenant_id,
+            sub_type: sub_type || '',
+          },
+        },
+      });
+
+      // Note: S3 file deletion would go here if needed
+      // await deleteFileFromS3(document.image_id);
+
+      return {
+        statusCode: 200,
+        success: true,
+        message: 'Document deleted successfully',
+        data: {
+          deleted_document: {
+            id: document.id,
+            type: document.type,
+            sub_type: document.sub_type,
+            url: document.url,
+            image_id: document.image_id,
+          },
+        },
+      };
+    } catch (error) {
+      this.logger.error('Failed to delete document:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
+    }
+  }
 }
