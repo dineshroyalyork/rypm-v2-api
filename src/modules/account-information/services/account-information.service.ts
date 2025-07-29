@@ -207,25 +207,22 @@ export class AccountInformationService {
   }
 
   private async createOrUpdateVehicles(tenant_id: string, data: VehiclesDto) {
-    try {      
-      const vehiclesData = {
-        type: data.type ?? "",
-        make: data.make ?? "",
-        model: data.model ?? "",
-        license_plate: data.license_plate ?? "",
-        car_ownership: data.car_ownership ?? "",
-      };
-      
-      return await this.prisma.vehicles.upsert({
-        where: { tenant_id: tenant_id },
-        update: vehiclesData,
-        create: {
-          tenant_id: tenant_id,
-          ...vehiclesData,
-        },
+    try {
+      await this.prisma.vehicles.deleteMany({ where: { tenant_id } });
+      const vehiclesToCreate = data.map((vehicle) => ({
+        tenant_id,
+        type: vehicle.type ?? "",
+        make: vehicle.make ?? "",
+        model: vehicle.model ?? "",
+        license_plate: vehicle.license_plate ?? "",
+        car_ownership: vehicle.car_ownership ?? "",
+      }));
+      await this.prisma.vehicles.createMany({
+        data: vehiclesToCreate,
       });
+      return await this.prisma.vehicles.findMany({ where: { tenant_id } });
     } catch (error) {
-      this.logger.error('Failed to save current residence:', error.stack);
+      this.logger.error('Failed to save vehicles:', error.stack);
       throw new InternalServerErrorException('Something Went Wrong');
     }
   }
@@ -412,7 +409,7 @@ export class AccountInformationService {
 
   private async getVehicles(tenant_id: string) {
     try {
-      const vehicles = await this.prisma.vehicles.findUnique({
+      const vehicles = await this.prisma.vehicles.findMany({
         where: { tenant_id: tenant_id },
       });
       if (!vehicles) {
@@ -503,7 +500,7 @@ export class AccountInformationService {
         this.prisma.pets.findMany({
           where: { tenant_id: tenant_id },
         }),
-        this.prisma.vehicles.findUnique({
+        this.prisma.vehicles.findMany({
           where: { tenant_id: tenant_id },
         }),
         this.prisma.emergency_contact.findUnique({

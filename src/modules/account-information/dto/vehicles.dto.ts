@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const vehiclesSchema = z.object({
+export const vehicleSchema = z.object({
   type: z.string().optional(), // Car, Motorcycle, etc.
   make: z.string().optional(), // Manufacturer (e.g., Honda)
   model: z.string().optional(), // Model of the vehicle (e.g., Civic)
@@ -8,4 +8,7 @@ export const vehiclesSchema = z.object({
   car_ownership: z.string().optional(), // Own, Lease, etc.
 });
 
-export type VehiclesDto = z.infer<typeof vehiclesSchema>; 
+export const vehiclesArraySchema = z.array(vehicleSchema);
+
+export type VehicleDto = z.infer<typeof vehicleSchema>;
+export type VehiclesDto = z.infer<typeof vehiclesArraySchema>; 

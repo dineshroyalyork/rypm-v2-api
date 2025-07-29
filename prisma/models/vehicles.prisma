@@ -1,6 +1,6 @@
 model vehicles {
   id            String   @id @default(uuid())
-  tenant_id     String   @unique
+  tenant_id     String
   type          String // Car, Motorcycle, etc.
   make          String // Manufacturer (e.g., Honda)
   model         String // Model of the vehicle (e.g., Civic)

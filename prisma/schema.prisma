@@ -703,7 +703,7 @@ model tenants {
   pets                  pets[]
   reference_details     reference_details?
   emergency_contact     emergency_contact?
-  vehicles              vehicles?
+  vehicles              vehicles[]
   personal_informations personal_informations?
   bank_details          bank_details?
   documents             document[]
@@ -728,7 +728,7 @@ model tour_slots {
 
 model vehicles {
   id            String   @id @default(uuid())
-  tenant_id     String   @unique
+  tenant_id     String
   type          String // Car, Motorcycle, etc.
   make          String // Manufacturer (e.g., Honda)
   model         String // Model of the vehicle (e.g., Civic)
