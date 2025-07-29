@@ -7,6 +7,7 @@ import { CreatePropertyDto } from '../dto/create-property.dto';
 import { RentalPreferencesDto } from '../dto/rental-preferences.dto';
 import { getDistance } from 'geolib';
 import { GetPropertiesSummaryDto } from '../dto/get-properties-summary.dto';
+import { SimilarPropertiesDto } from '../dto/similar-properties.dto';
 export type PropertyType = (typeof ALLOWED_PROPERTY_TYPES)[number];
 
 @Injectable()
@@ -503,10 +504,6 @@ export class PropertiesService {
       // Validate property_type
       const { price_min, price_max, bedrooms, bathrooms, parking, property_type, move_in_date } = rentalPreferencesDto;
 
-      if (property_type && !ALLOWED_PROPERTY_TYPES.includes(property_type as PropertyType)) {
-        throw new BadRequestException(`Invalid property_type: ${property_type}`);
-      }
-
       // Upsert rental preferences
       const upserted = await this.prisma.rental_preference.upsert({
         where: { tenant_id },
@@ -610,6 +607,7 @@ export class PropertiesService {
           where = {
             ...(rentalPref.bedrooms && { bedrooms: { gte: rentalPref.bedrooms } }),
             ...(rentalPref.bathrooms && { bathrooms: { gte: rentalPref.bathrooms } }),
+            ...(rentalPref.property_type && { property_type: rentalPref.property_type }),
             ...(rentalPref.parking && {
               property_details: {
                 number_of_parking_spaces: { gte: rentalPref.parking },
@@ -630,6 +628,7 @@ export class PropertiesService {
         if (bedrooms) where.bedrooms = { gte: bedrooms.toString() };
         if (bathrooms) where.bathrooms = { gte: bathrooms.toString() };
         if (search) where.name = { contains: search, mode: 'insensitive' };
+        if (property_type) where.property_type = property_type;
         if (parking) {
           where.property_details = {
             ...(where.property_details || {}),
@@ -741,6 +740,7 @@ export class PropertiesService {
           id: true,
           name: true,
           thumbnail_image: true,
+          property_type: true,
           property_attachments: true,
           bedrooms: true,
           bathrooms: true,
@@ -1657,5 +1657,225 @@ export class PropertiesService {
       console.error('CSV import error:', error);
       throw new InternalServerErrorException(`CSV import failed: ${error.message}`);
     }
+  }
+
+  async getSimilarProperties(query: SimilarPropertiesDto) {
+    try {
+      const { property_id, limit = '10', radius_km = '5' } = query;
+      const limitNum = Number(limit);
+      const radiusKm = Number(radius_km);
+
+      // Get the reference property
+      const referenceProperty = await this.prisma.properties.findUnique({
+        where: { id: property_id },
+        select: {
+          id: true,
+          name: true,
+          property_type: true,
+          marketed_price: true,
+          total_area_sq_ft: true,
+          bedrooms: true,
+          bathrooms: true,
+          latitude: true,
+          longitude: true,
+          city: true,
+          address: true,
+          thumbnail_image: true,
+          property_details: {
+            select: {
+              number_of_parking_spaces: true,
+            },
+          },
+        },
+      });
+      if (!referenceProperty) {
+        return {
+          statusCode: 404,
+          success: false,
+          message: 'Reference property not found',
+          data: null,
+        };
+      }
+
+      // Get all other properties for comparison
+      const allProperties = await this.prisma.properties.findMany({
+        where: {
+          id: { not: property_id }, // Exclude the reference property
+        },
+        select: {
+          id: true,
+          name: true,
+          property_type: true,
+          marketed_price: true,
+          total_area_sq_ft: true,
+          bedrooms: true,
+          bathrooms: true,
+          latitude: true,
+          longitude: true,
+          city: true,
+          address: true,
+          thumbnail_image: true,
+          property_details: {
+            select: {
+              number_of_parking_spaces: true,
+            },
+          },
+        },
+      });
+
+      // Calculate similarity scores for each property
+      const propertiesWithScores = allProperties
+        .map(property => {
+          const score = this.calculateSimilarityScore(referenceProperty, property, radiusKm);
+          return { ...property, similarity_score: score };
+        })
+        .filter(property => property.similarity_score > 0) // Only include properties with some similarity
+        .sort((a, b) => b.similarity_score - a.similarity_score) // Sort by similarity score descending
+        .slice(0, limitNum); // Limit results
+
+      return {
+        statusCode: 200,
+        success: true,
+        message: 'Similar properties found successfully',
+        data: {
+          reference_property: referenceProperty,
+          similar_properties: propertiesWithScores,
+          total_found: propertiesWithScores.length,
+          search_criteria: {
+            radius_km: radiusKm,
+            limit: limitNum,
+          },
+        },
+      };
+    } catch (error) {
+      console.error('Failed to get similar properties:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
+    }
+  }
+
+  private calculateSimilarityScore(
+    reference: any,
+    property: any,
+    radiusKm: number
+  ): number {
+    let totalScore = 0;
+    let maxPossibleScore = 0;
+
+    // 1. Location Score (40% weight)
+    const locationScore = this.calculateLocationScore(reference, property, radiusKm);
+    totalScore += locationScore * 0.4;
+    maxPossibleScore += 100 * 0.4;
+
+    // 2. Price Score (20% weight)
+    const priceScore = this.calculatePriceScore(reference, property);
+    totalScore += priceScore * 0.2;
+    maxPossibleScore += 100 * 0.2;
+
+    // 3. Size Score (15% weight)
+    const sizeScore = this.calculateSizeScore(reference, property);
+    totalScore += sizeScore * 0.15;
+    maxPossibleScore += 100 * 0.15;
+
+    // 4. Property Type Score (15% weight)
+    const typeScore = this.calculatePropertyTypeScore(reference, property);
+    totalScore += typeScore * 0.15;
+    maxPossibleScore += 100 * 0.15;
+
+    // 5. Amenities Score (10% weight)
+    const amenitiesScore = this.calculateAmenitiesScore(reference, property);
+    totalScore += amenitiesScore * 0.1;
+    maxPossibleScore += 100 * 0.1;
+
+    // Return normalized score (0-100)
+    return maxPossibleScore > 0 ? Math.round((totalScore / maxPossibleScore) * 100) : 0;
+  }
+
+  private calculateLocationScore(reference: any, property: any, radiusKm: number): number {
+    if (!reference.latitude || !reference.longitude || !property.latitude || !property.longitude) {
+      return 0;
+    }
+
+    const distance = getDistance(
+      { latitude: Number(reference.latitude), longitude: Number(reference.longitude) },
+      { latitude: Number(property.latitude), longitude: Number(property.longitude) }
+    );
+
+    const distanceKm = distance / 1000; // Convert meters to kilometers
+
+    if (distanceKm <= radiusKm) {
+      // Within radius: score decreases linearly from 100 to 50
+      return Math.max(50, 100 - (distanceKm / radiusKm) * 50);
+    } else {
+      // Outside radius: score decreases exponentially
+      return Math.max(0, 50 * Math.exp(-(distanceKm - radiusKm) / radiusKm));
+    }
+  }
+
+  private calculatePriceScore(reference: any, property: any): number {
+    if (!reference.marketed_price || !property.marketed_price) {
+      return 0;
+    }
+
+    const priceDiff = Math.abs(reference.marketed_price - property.marketed_price);
+    const priceRatio = priceDiff / reference.marketed_price;
+
+    if (priceRatio <= 0.1) return 100; // Within 10%
+    if (priceRatio <= 0.2) return 80;  // Within 20%
+    if (priceRatio <= 0.3) return 60;  // Within 30%
+    if (priceRatio <= 0.5) return 40;  // Within 50%
+    return Math.max(0, 20 * (1 - priceRatio)); // Beyond 50%
+  }
+
+  private calculateSizeScore(reference: any, property: any): number {
+    if (!reference.total_area_sq_ft || !property.total_area_sq_ft) {
+      return 0;
+    }
+
+    const sizeDiff = Math.abs(reference.total_area_sq_ft - property.total_area_sq_ft);
+    const sizeRatio = sizeDiff / reference.total_area_sq_ft;
+
+    if (sizeRatio <= 0.1) return 100; // Within 10%
+    if (sizeRatio <= 0.2) return 80;  // Within 20%
+    if (sizeRatio <= 0.3) return 60;  // Within 30%
+    if (sizeRatio <= 0.5) return 40;  // Within 50%
+    return Math.max(0, 20 * (1 - sizeRatio)); // Beyond 50%
+  }
+
+  private calculatePropertyTypeScore(reference: any, property: any): number {
+    if (!reference.property_type || !property.property_type) {
+      return 50; // Neutral score if type is missing
+    }
+
+    return reference.property_type === property.property_type ? 100 : 0;
+  }
+
+  private calculateAmenitiesScore(reference: any, property: any): number {
+    let score = 0;
+    let totalComparisons = 0;
+
+    // Compare bedrooms
+    if (reference.bedrooms && property.bedrooms) {
+      const bedroomDiff = Math.abs(Number(reference.bedrooms) - Number(property.bedrooms));
+      score += bedroomDiff === 0 ? 100 : Math.max(0, 100 - bedroomDiff * 25);
+      totalComparisons++;
+    }
+
+    // Compare bathrooms
+    if (reference.bathrooms && property.bathrooms) {
+      const bathroomDiff = Math.abs(Number(reference.bathrooms) - Number(property.bathrooms));
+      score += bathroomDiff === 0 ? 100 : Math.max(0, 100 - bathroomDiff * 25);
+      totalComparisons++;
+    }
+
+    // Compare parking spaces
+    const refParking = reference.property_details?.number_of_parking_spaces || 0;
+    const propParking = property.property_details?.number_of_parking_spaces || 0;
+    if (refParking > 0 || propParking > 0) {
+      const parkingDiff = Math.abs(refParking - propParking);
+      score += parkingDiff === 0 ? 100 : Math.max(0, 100 - parkingDiff * 25);
+      totalComparisons++;
+    }
+
+    return totalComparisons > 0 ? score / totalComparisons : 50;
   }
 }

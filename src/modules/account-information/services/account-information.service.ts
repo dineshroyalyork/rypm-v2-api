@@ -144,15 +144,12 @@ export class AccountInformationService {
         manager_email: income.manager_email,
         position_title: income.position_title,
         occupation: income.occupation,
+        country_code: income.country_code,
         start_date: income.start_date ? new Date(income.start_date) : null,
         monthly_income: income.monthly_income,
         service_provided: income.service_provided ,
         government_program: income.government_program ,
-        school_name:
-          income.source_of_income === SourceOfIncome.STUDENT_NO_INCOME ||
-          income.source_of_income === SourceOfIncome.STUDENT_SUPPORTED_BY_PARENTS
-            ? income.employer
-            : null,
+        school_name: income.school_name,
       }));
       const createdRecords = await Promise.all(
         records.map((record) => this.prisma.income_sources.create({ data: record }))
@@ -608,6 +605,70 @@ export class AccountInformationService {
       });
     } catch (error) {
       throw new Error(`Failed to save document: ${error.message}`);
+    }
+  }
+
+  async deleteDocument(tenant_id: string, type: string, sub_type?: string) {
+    try {
+      // Find the document to delete using the correct unique constraint
+      const document = await this.prisma.document.findUnique({
+        where: {
+          tenant_id_sub_type: {
+            tenant_id,
+            sub_type: sub_type || '',
+          },
+        },
+      });
+
+      if (!document) {
+        return {
+          statusCode: 404,
+          success: false,
+          message: 'Document not found',
+          data: null,
+        };
+      }
+
+      // Verify the document type matches
+      if (document.type !== type) {
+        return {
+          statusCode: 404,
+          success: false,
+          message: 'Document not found with specified type',
+          data: null,
+        };
+      }
+
+      // Delete the document from database
+      await this.prisma.document.delete({
+        where: {
+          tenant_id_sub_type: {
+            tenant_id,
+            sub_type: sub_type || '',
+          },
+        },
+      });
+
+      // Note: S3 file deletion would go here if needed
+      // await deleteFileFromS3(document.image_id);
+
+      return {
+        statusCode: 200,
+        success: true,
+        message: 'Document deleted successfully',
+        data: {
+          deleted_document: {
+            id: document.id,
+            type: document.type,
+            sub_type: document.sub_type,
+            url: document.url,
+            image_id: document.image_id,
+          },
+        },
+      };
+    } catch (error) {
+      this.logger.error('Failed to delete document:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
     }
   }
 }

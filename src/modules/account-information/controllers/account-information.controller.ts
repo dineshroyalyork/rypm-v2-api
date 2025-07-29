@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, UseGuards, Request, UsePipes, Query,UseInterceptors,UploadedFiles, UploadedFile } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, UseGuards, Request, UsePipes, Query,UseInterceptors,UploadedFiles, UploadedFile } from '@nestjs/common';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { AuthGuard } from '@/shared/guards/auth.guard';
 import { AccountInformationService } from '../services/account-information.service';
@@ -6,6 +6,7 @@ import { accountInformationSchema, AccountInformationDto } from '../dto/account-
 import { InformationType } from '@/shared/enums/account-details.enum';
 import { AnyFilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { uploadFileToS3 } from '@/shared/utils/aws';
+import { deleteDocumentSchema, DeleteDocumentDto } from '../dto/delete-document.dto';
 
 @Controller({ path: 'account-information', version: '2' })
 @UseGuards(AuthGuard)
@@ -80,6 +81,19 @@ export class AccountInformationController {
         videoFile
       ),
     };
+  }
+
+  @Delete('documents')
+  @UseGuards(AuthGuard)
+  @UsePipes(new ZodValidationPipe(deleteDocumentSchema))
+  async deleteDocument(
+    @Request() req: any,
+    @Body() deleteDocumentDto: DeleteDocumentDto
+  ) {
+    const tenant_id = req.user?.sub || req.user?.id;
+    const { type, sub_type } = deleteDocumentDto;
+
+    return await this.accountInformationService.deleteDocument(tenant_id, type, sub_type);
   }
   
 }

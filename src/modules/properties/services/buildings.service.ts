@@ -586,10 +586,90 @@ export class BuildingsService {
           results.errors.forEach(error => console.log(`- ${error}`));
         }
 
+        // After successful building import, update property types
+        console.log('\n=== Updating Property Types ===');
+        let propertyUpdateResults = {
+          total_properties: 0,
+          updated: 0,
+          skipped: 0,
+          errors: 0
+        };
+
+        try {
+          // Get all properties that have associated_building using raw SQL
+          const propertiesWithBuilding = await this.prisma.$queryRaw<Array<{id: string, associated_building: any}>>`
+            SELECT id, associated_building 
+            FROM properties 
+            WHERE associated_building IS NOT NULL
+          `;
+
+          console.log(`Found ${propertiesWithBuilding.length} properties with associated buildings`);
+
+          for (const property of propertiesWithBuilding) {
+            try {
+              // Extract building ID from associated_building
+              let buildingId: string | null = null;
+              
+              if (property.associated_building && typeof property.associated_building === 'object') {
+                const ab = property.associated_building as any;
+                if (ab && ab.id && typeof ab.id === 'string') {
+                  buildingId = ab.id;
+                }
+              }
+
+              if (!buildingId) {
+                console.log(`Skipping property ${property.id}: No valid building ID found`);
+                propertyUpdateResults.skipped++;
+                continue;
+              }
+
+              // Find the building with matching building_property_id
+              const building = await this.prisma.buildings.findFirst({
+                where: {
+                  building_property_id: buildingId
+                },
+                select: {
+                  property_type: true
+                }
+              });
+
+              if (!building || !building.property_type) {
+                console.log(`Skipping property ${property.id}: No building found or no property_type`);
+                propertyUpdateResults.skipped++;
+                continue;
+              }
+
+              // Update the property with the building's property_type using raw SQL
+              await this.prisma.$executeRaw`
+                UPDATE properties 
+                SET property_type = ${building.property_type}, updated_at = NOW()
+                WHERE id = ${property.id}
+              `;
+
+              console.log(`Updated property ${property.id} with property_type: ${building.property_type}`);
+              propertyUpdateResults.updated++;
+
+            } catch (error) {
+              console.error(`Error updating property ${property.id}:`, error.message);
+              propertyUpdateResults.errors++;
+            }
+          }
+
+          propertyUpdateResults.total_properties = propertiesWithBuilding.length;
+          console.log('Property type update completed:', propertyUpdateResults);
+
+        } catch (error) {
+          console.error('Failed to update property types:', error);
+          propertyUpdateResults.errors++;
+        }
+
         return {
           statusCode: 200,
-          message: 'Building CSV import completed',
-          data: results,
+          message: 'Building CSV import completed with property type updates',
+          data: {
+            ...results,
+            property_updates: propertyUpdateResults
+          },
         };
       } catch (error) {
         console.error('Error during building CSV import:', error);
