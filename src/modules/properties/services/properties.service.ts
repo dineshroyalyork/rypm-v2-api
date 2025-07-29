@@ -503,10 +503,6 @@ export class PropertiesService {
       // Validate property_type
       const { price_min, price_max, bedrooms, bathrooms, parking, property_type, move_in_date } = rentalPreferencesDto;
 
-      if (property_type && !ALLOWED_PROPERTY_TYPES.includes(property_type as PropertyType)) {
-        throw new BadRequestException(`Invalid property_type: ${property_type}`);
-      }
-
       // Upsert rental preferences
       const upserted = await this.prisma.rental_preference.upsert({
         where: { tenant_id },
@@ -610,6 +606,7 @@ export class PropertiesService {
           where = {
             ...(rentalPref.bedrooms && { bedrooms: { gte: rentalPref.bedrooms } }),
             ...(rentalPref.bathrooms && { bathrooms: { gte: rentalPref.bathrooms } }),
+            ...(rentalPref.property_type && { property_type: rentalPref.property_type }),
             ...(rentalPref.parking && {
               property_details: {
                 number_of_parking_spaces: { gte: rentalPref.parking },
@@ -630,6 +627,7 @@ export class PropertiesService {
         if (bedrooms) where.bedrooms = { gte: bedrooms.toString() };
         if (bathrooms) where.bathrooms = { gte: bathrooms.toString() };
         if (search) where.name = { contains: search, mode: 'insensitive' };
+        if (property_type) where.property_type = property_type;
         if (parking) {
           where.property_details = {
             ...(where.property_details || {}),
@@ -741,6 +739,7 @@ export class PropertiesService {
           id: true,
           name: true,
           thumbnail_image: true,
+          property_type: true,
           property_attachments: true,
           bedrooms: true,
           bathrooms: true,

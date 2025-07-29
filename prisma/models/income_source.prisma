@@ -5,6 +5,7 @@ model income_sources {
   employer             String?
   manager_name         String?
   manager_phone_number String?
+  country_code         String?
   manager_email        String?
   position_title       String?
   occupation           String?

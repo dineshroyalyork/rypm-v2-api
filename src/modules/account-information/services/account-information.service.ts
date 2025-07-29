@@ -144,15 +144,12 @@ export class AccountInformationService {
         manager_email: income.manager_email,
         position_title: income.position_title,
         occupation: income.occupation,
+        country_code: income.country_code,
         start_date: income.start_date ? new Date(income.start_date) : null,
         monthly_income: income.monthly_income,
         service_provided: income.service_provided ,
         government_program: income.government_program ,
-        school_name:
-          income.source_of_income === SourceOfIncome.STUDENT_NO_INCOME ||
-          income.source_of_income === SourceOfIncome.STUDENT_SUPPORTED_BY_PARENTS
-            ? income.employer
-            : null,
+        school_name: income.school_name,
       }));
       const createdRecords = await Promise.all(
         records.map((record) => this.prisma.income_sources.create({ data: record }))

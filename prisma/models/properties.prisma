@@ -8,6 +8,7 @@ model properties {
   basement_included             String?
   total_area_sq_ft              Int?
   number_of_floors              Int?
+  property_type                 String?
   name                          String?
   city                          String?
   address                       String?

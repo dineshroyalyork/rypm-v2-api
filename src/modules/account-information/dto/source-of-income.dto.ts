@@ -15,6 +15,8 @@ export const sourceOfIncomeSchema = z
     start_date: z.string().optional(),
     monthly_income: z.number().positive('Monthly income must be positive').optional(),
     manager_name: z.string().optional(),
+    country_code: z.string().optional(),
+    school_name: z.string().optional(),
     manager_phone_number: z.string().optional(),
     manager_email: z.string().email('Please enter a valid email address').optional(),
     service_provided: z.string().optional(),
