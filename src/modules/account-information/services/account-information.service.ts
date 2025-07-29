@@ -149,7 +149,7 @@ export class AccountInformationService {
         monthly_income: income.monthly_income,
         service_provided: income.service_provided ,
         government_program: income.government_program ,
-        school_name: income.school_name,
+        school_name: income.school_name ?? "",
       }));
       const createdRecords = await Promise.all(
         records.map((record) => this.prisma.income_sources.create({ data: record }))
