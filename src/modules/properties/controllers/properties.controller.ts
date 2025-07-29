@@ -5,6 +5,7 @@ import { Request } from 'express';
 import { CreatePropertyDto, createPropertySchema } from '../dto/create-property.dto';
 import { RentalPreferencesDto } from '../dto/rental-preferences.dto';
 import { GetPropertiesSummaryDto, getPropertiesSummarySchema } from '../dto/get-properties-summary.dto';
+import { SimilarPropertiesDto, similarPropertiesSchema } from '../dto/similar-properties.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PropertiesService } from '../services/properties.service';
 import { ZodValidationPipe } from 'nestjs-zod';
@@ -57,6 +58,13 @@ export class PropertiesController {
   async getRentalPreferences(@Req() req: Request) {
     const tenant_id = (req as any).user?.sub || (req as any).user?.id;
     return this.propertiesService.getRentalPreferences(tenant_id);
+  }
+
+  @UseGuards(OptionalAuthGuard)
+  @Get('similar')
+  @UsePipes(new ZodValidationPipe(similarPropertiesSchema))
+  async getSimilarProperties(@Query() query: SimilarPropertiesDto) {
+    return this.propertiesService.getSimilarProperties(query);
   }
 
   @UseGuards(OptionalAuthGuard)
