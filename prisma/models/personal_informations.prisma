@@ -6,6 +6,7 @@ model personal_informations {
   sur_name                String?
   email                   String?
   mobile_number           String?
+  country_code            String?
   gender                  String?
   marital_status          String?
   credit_score            String?

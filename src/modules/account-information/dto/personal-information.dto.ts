@@ -9,7 +9,7 @@ export const personalInformationSchema = z.object({
   // Contact information
   email: z.string().email('Please enter a valid email address'),
   mobile_number: z.string().min(10, 'Mobile number must be at least 10 digits'),
-  country_code: z.string().min(1, 'Country code is required'),
+  country_code: z.string().optional(),
 
   // Demographics
   gender: z.string().min(1, 'Please select your gender'),

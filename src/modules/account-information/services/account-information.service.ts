@@ -75,6 +75,7 @@ export class AccountInformationService {
         sur_name: data.sur_name,
         email: data.email,
         mobile_number: data.mobile_number,
+        country_code: data.country_code,
         gender: data.gender,
         marital_status: data.marital_status,
         credit_score: data.credit_score , // Convert to string
@@ -169,6 +170,7 @@ export class AccountInformationService {
         email: data.email ?? "",
         mobile_number: data.mobile_number ?? "",
         relationship: data.relationship ?? "",
+        country_code: data.country_code ?? "",
       };
       return await this.prisma.reference_details.upsert({
         where: { tenant_id: tenant_id },
@@ -235,6 +237,7 @@ export class AccountInformationService {
         email: data.email ?? "",
         mobile_number: data.mobile_number ?? "",
         relationship: data.relationship ?? "",
+        country_code: data.country_code ?? ""
       };
       return await this.prisma.emergency_contact.upsert({
         where: { tenant_id: tenant_id },

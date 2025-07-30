@@ -5,6 +5,7 @@ model emergency_contact {
   last_name      String?
   email         String?
   mobile_number  String?
+  country_code   String?
   relationship  String?
 
   created_at     DateTime @default(now())
