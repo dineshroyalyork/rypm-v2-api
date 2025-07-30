@@ -63,6 +63,8 @@ model properties {
   longitude                    String?
   // Laundry Features
   washer_dryer_in_unit         Boolean?
+  // Tenant Information
+  tenant_id                    String?
   // Timestamps
   created_at                   DateTime              @default(now())
   updated_at                   DateTime              @default(now()) @updatedAt
@@ -70,4 +72,5 @@ model properties {
   property_details             property_details?
   wishlist_property            wishlist_property[]
   property_attachments         PropertyAttachments[]
+  tenant                       tenants?              @relation(fields: [tenant_id], references: [id])
 }

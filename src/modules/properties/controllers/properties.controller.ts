@@ -1,11 +1,14 @@
 import { AuthGuard } from '@/shared/guards/auth.guard';
 import { OptionalAuthGuard } from '@/shared/guards/optional-auth.guard';
-import { Body, Controller, Get, Param, Post, Req, UseGuards, UploadedFile, ParseFilePipe, UseInterceptors, Query, UsePipes, BadRequestException } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Req, UseGuards, UploadedFile, ParseFilePipe, UseInterceptors, Query, UsePipes, BadRequestException } from '@nestjs/common';
 import { Request } from 'express';
 import { CreatePropertyDto, createPropertySchema } from '../dto/create-property.dto';
 import { RentalPreferencesDto } from '../dto/rental-preferences.dto';
 import { GetPropertiesSummaryDto, getPropertiesSummarySchema } from '../dto/get-properties-summary.dto';
 import { SimilarPropertiesDto, similarPropertiesSchema } from '../dto/similar-properties.dto';
+import { ListPropertyDto, listPropertySchema } from '../dto/list-property.dto';
+import { GetListedPropertiesDto, getListedPropertiesSchema } from '../dto/get-listed-properties.dto';
+import { UpdateListedPropertyDto, updateListedPropertySchema } from '../dto/update-listed-property.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PropertiesService } from '../services/properties.service';
 import { ZodValidationPipe } from 'nestjs-zod';
@@ -18,6 +21,14 @@ export class PropertiesController {
   @UsePipes(new ZodValidationPipe(createPropertySchema))
   async create(@Body() createPropertyDto: CreatePropertyDto) {
     return this.propertiesService.create(createPropertyDto);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('list')
+  @UsePipes(new ZodValidationPipe(listPropertySchema))
+  async listProperty(@Req() req: Request, @Body() listPropertyDto: ListPropertyDto) {
+    const tenant_id = (req as any).user?.sub || (req as any).user?.id;
+    return this.propertiesService.listProperty(listPropertyDto, tenant_id);
   }
   @UseGuards(AuthGuard)
   @Post('rental-preferences')
@@ -65,6 +76,26 @@ export class PropertiesController {
   @UsePipes(new ZodValidationPipe(similarPropertiesSchema))
   async getSimilarProperties(@Query() query: SimilarPropertiesDto) {
     return this.propertiesService.getSimilarProperties(query);
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('listed')
+  @UsePipes(new ZodValidationPipe(getListedPropertiesSchema))
+  async getAllListedProperties(@Query() query: GetListedPropertiesDto, @Req() req: Request) {
+    const tenant_id = (req as any).user?.sub || (req as any).user?.id;
+    // Override tenant_id from query with authenticated user's tenant_id
+    if (tenant_id) {
+      query.tenant_id = tenant_id;
+    }
+    return this.propertiesService.getAllListedProperties(query);
+  }
+
+  @UseGuards(AuthGuard)
+  @Put('update')
+  @UsePipes(new ZodValidationPipe(updateListedPropertySchema))
+  async updateListedProperty(@Req() req: Request, @Body() updatePropertyDto: UpdateListedPropertyDto) {
+    const tenant_id = (req as any).user?.sub || (req as any).user?.id;
+    return this.propertiesService.updateListedProperty(updatePropertyDto, tenant_id);
   }
 
   @UseGuards(OptionalAuthGuard)

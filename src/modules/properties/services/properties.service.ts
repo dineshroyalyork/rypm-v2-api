@@ -8,6 +8,9 @@ import { RentalPreferencesDto } from '../dto/rental-preferences.dto';
 import { getDistance } from 'geolib';
 import { GetPropertiesSummaryDto } from '../dto/get-properties-summary.dto';
 import { SimilarPropertiesDto } from '../dto/similar-properties.dto';
+import { ListPropertyDto } from '../dto/list-property.dto';
+import { GetListedPropertiesDto } from '../dto/get-listed-properties.dto';
+import { UpdateListedPropertyDto } from '../dto/update-listed-property.dto';
 export type PropertyType = (typeof ALLOWED_PROPERTY_TYPES)[number];
 
 @Injectable()
@@ -1877,5 +1880,699 @@ export class PropertiesService {
     }
 
     return totalComparisons > 0 ? score / totalComparisons : 50;
+  }
+
+  private async generateUniqueBuildingPropertyId(): Promise<string> {
+    let buildingPropertyId: string;
+    let isUnique = false;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (!isUnique && attempts < maxAttempts) {
+      // Generate a unique building_property_id with format: BUILDING-{timestamp}-{random}
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      buildingPropertyId = `BUILDING-${timestamp}-${random}`;
+
+      // Check if this ID already exists
+      const existingBuilding = await this.prisma.buildings.findFirst({
+        where: { building_property_id: buildingPropertyId },
+      });
+
+      if (!existingBuilding) {
+        isUnique = true;
+      } else {
+        attempts++;
+        // Wait a bit before trying again to ensure different timestamp
+        await new Promise(resolve => setTimeout(resolve, 1));
+      }
+    }
+
+    if (!isUnique) {
+      throw new Error('Unable to generate unique building_property_id after multiple attempts');
+    }
+
+    return buildingPropertyId!;
+  }
+
+  async listProperty(listPropertyDto: ListPropertyDto, tenant_id?: string) {
+    try {
+      // Extract data for each table
+      const propertyData = {
+        zcrm_id: listPropertyDto.zcrm_id,
+        available_date: listPropertyDto.available_date ? new Date(listPropertyDto.available_date) : null,
+        property_condition: listPropertyDto.property_condition,
+        basement_details: listPropertyDto.basement_details,
+        basement_included: listPropertyDto.basement_included,
+        total_area_sq_ft: listPropertyDto.total_area_sq_ft,
+        number_of_floors: listPropertyDto.number_of_floors,
+        property_type: listPropertyDto.property_type,
+        name: listPropertyDto.name,
+        city: listPropertyDto.city,
+        address: listPropertyDto.address,
+        marketed_price: listPropertyDto.marketed_price,
+        fireplace: listPropertyDto.fireplace,
+        window_coverings: listPropertyDto.window_coverings,
+        flooring_common_area: listPropertyDto.flooring_common_area,
+        ceiling_hight: listPropertyDto.ceiling_hight,
+        bedrooms: listPropertyDto.bedrooms,
+        bedroom_layout: listPropertyDto.bedroom_layout,
+        closets: listPropertyDto.closets,
+        en_suite_bathrooms: listPropertyDto.en_suite_bathrooms,
+        fireplace_bedroom: listPropertyDto.fireplace_bedroom,
+        den_can_be_used_as_a_bedroom: listPropertyDto.den_can_be_used_as_a_bedroom,
+        bathrooms: listPropertyDto.bathrooms,
+        shower_type: listPropertyDto.shower_type,
+        upgraded_bathrooms: listPropertyDto.upgraded_bathrooms,
+        countertops_bathroom: listPropertyDto.countertops_bathroom,
+        central_hvac: listPropertyDto.central_hvac ? new Date(listPropertyDto.central_hvac) : null,
+        heating_ac_unit: listPropertyDto.heating_ac_unit,
+        heated_floors: listPropertyDto.heated_floors,
+        washer_dryer: listPropertyDto.washer_dryer,
+        furnace: listPropertyDto.furnace,
+        hot_water_heater_manufacturer: listPropertyDto.hot_water_heater_manufacturer,
+        washer_and_dryer: listPropertyDto.washer_and_dryer,
+        air_conditioning_manufacturer: listPropertyDto.air_conditioning_manufacturer,
+        countertops: listPropertyDto.countertops,
+        dishwasher: listPropertyDto.dishwasher,
+        upgraded_kitchen: listPropertyDto.upgraded_kitchen,
+        appliance_finishes: listPropertyDto.appliance_finishes,
+        new_ice_maker: listPropertyDto.new_ice_maker,
+        upgraded_back_splash: listPropertyDto.upgraded_back_splash,
+        thumbnail_image: listPropertyDto.thumbnail_image,
+        refrigerator_manufacture: listPropertyDto.refrigerator_manufacture,
+        stove_oven: listPropertyDto.stove_oven,
+        dishwasher_manufacture: listPropertyDto.dishwasher_manufacture,
+        microwave_manufacture: listPropertyDto.microwave_manufacture,
+        cooktop_manufacture: listPropertyDto.cooktop_manufacture,
+        ventilation_hood_manufacture: listPropertyDto.ventilation_hood_manufacture,
+        dryer_manufacture: listPropertyDto.dryer_manufacture,
+        latitude: listPropertyDto.latitude,
+        longitude: listPropertyDto.longitude,
+        washer_dryer_in_unit: listPropertyDto.washer_dryer_in_unit,
+        tenant_id: listPropertyDto.tenant_id || tenant_id,
+      };
+
+      // Extract property details data
+      const propertyDetailsData = {
+        owner: listPropertyDto.owner,
+        tenant_prospect_marketed_price_multiplied: listPropertyDto.tenant_prospect_marketed_price_multiplied,
+        daily_rent: listPropertyDto.daily_rent,
+        currency: listPropertyDto.currency,
+        setup_fee: listPropertyDto.setup_fee,
+        management_fees: listPropertyDto.management_fees,
+        link_to_automatically_book_showing: listPropertyDto.link_to_automatically_book_showing,
+        important_information_for_booking_showing: listPropertyDto.important_information_for_booking_showing,
+        outdoor_pool: listPropertyDto.outdoor_pool,
+        unit_owner_deal: listPropertyDto.unit_owner_deal,
+        huge_private_terrace: listPropertyDto.huge_private_terrace,
+        heat_inclusion: listPropertyDto.heat_inclusion,
+        carbon_monoxide_detector: listPropertyDto.carbon_monoxide_detector,
+        internet_inclusion: listPropertyDto.internet_inclusion,
+        private_garage: listPropertyDto.private_garage,
+        tons_of_natural_light: listPropertyDto.tons_of_natural_light,
+        central_vaccum: listPropertyDto.central_vaccum,
+        ac_inclusion: listPropertyDto.ac_inclusion,
+        corner_unit: listPropertyDto.corner_unit,
+        walk_in_closets: listPropertyDto.walk_in_closets,
+        phone_inclusion: listPropertyDto.phone_inclusion,
+        client_support_specialist: listPropertyDto.client_support_specialist,
+        noe_contact: listPropertyDto.noe_contact,
+        email: listPropertyDto.email,
+        postal_code: listPropertyDto.postal_code,
+        neighbourhood: listPropertyDto.neighbourhood,
+        view: listPropertyDto.view,
+        management_start_date: listPropertyDto.management_start_date ? new Date(listPropertyDto.management_start_date) : null,
+        management_end_date: listPropertyDto.management_end_date ? new Date(listPropertyDto.management_end_date) : null,
+        management_deal_created: listPropertyDto.management_deal_created,
+        date_under_management: listPropertyDto.date_under_management ? new Date(listPropertyDto.date_under_management) : null,
+        ad_description_with_parking_and_locker: listPropertyDto.ad_description_with_parking_and_locker,
+        posting_title_with_parking_and_locker: listPropertyDto.posting_title_with_parking_and_locker,
+        email_description: listPropertyDto.email_description,
+        social_media_description: listPropertyDto.social_media_description,
+        meta_description: listPropertyDto.meta_description,
+        linkedin: listPropertyDto.linkedin,
+        google_my_business: listPropertyDto.google_my_business,
+        instagram: listPropertyDto.instagram,
+        youtube_video: listPropertyDto.youtube_video,
+        unit_type: listPropertyDto.unit_type,
+        unit_category: listPropertyDto.unit_category,
+        appliances: listPropertyDto.appliances,
+        flooring_in_bedrooms: listPropertyDto.flooring_in_bedrooms,
+        storage_details: listPropertyDto.storage_details,
+        parking_details: listPropertyDto.parking_details,
+        locker_level_and_number: listPropertyDto.locker_level_and_number,
+        backyard: listPropertyDto.backyard,
+        is_the_backyard_fenced: listPropertyDto.is_the_backyard_fenced,
+        gas_provider: listPropertyDto.gas_provider,
+        furnace_filter: listPropertyDto.furnace_filter,
+        hot_water_tank_provider: listPropertyDto.hot_water_tank_provider,
+        washer_manufacture: listPropertyDto.washer_manufacture,
+        refrigerator_manufacture: listPropertyDto.refrigerator_manufacture,
+        smoke_alarm_1: listPropertyDto.smoke_alarm_1,
+        fire_extinguisher1: listPropertyDto.fire_extinguisher1,
+        insurance_policy_number: listPropertyDto.insurance_policy_number,
+        insurance_home_owner: listPropertyDto.insurance_home_owner,
+        create_legal_file: listPropertyDto.create_legal_file,
+        max_occupants: listPropertyDto.max_occupants,
+        synced_web_tp: listPropertyDto.synced_web_tp,
+        point2homes: listPropertyDto.point2homes,
+        fully_marketed: listPropertyDto.fully_marketed,
+        publish_to_rypm_website: listPropertyDto.publish_to_rypm_website,
+        website_verified: listPropertyDto.website_verified,
+        unsubscribed_mode: listPropertyDto.unsubscribed_mode,
+        active_1_10_days: listPropertyDto.active_1_10_days,
+        update_portfolio: listPropertyDto.update_portfolio,
+        kijiji_data_importer: listPropertyDto.kijiji_data_importer,
+        tenant_cons_email_last_sent: listPropertyDto.tenant_cons_email_last_sent ? new Date(listPropertyDto.tenant_cons_email_last_sent) : null,
+        noe_vacancy_date: listPropertyDto.noe_vacancy_date ? new Date(listPropertyDto.noe_vacancy_date) : null,
+        noe_date_and_time_from_owner_portal: listPropertyDto.noe_date_and_time_from_owner_portal ? new Date(listPropertyDto.noe_date_and_time_from_owner_portal) : null,
+        closing_date: listPropertyDto.closing_date ? new Date(listPropertyDto.closing_date) : null,
+        when_was_the_property_leased: listPropertyDto.when_was_the_property_leased ? new Date(listPropertyDto.when_was_the_property_leased) : null,
+        scheduled_photos_and_video: listPropertyDto.scheduled_photos_and_video,
+        flushing_of_drain_work_order: listPropertyDto.flushing_of_drain_work_order,
+        modified_time: listPropertyDto.modified_time,
+        last_activity_time: listPropertyDto.last_activity_time ? new Date(listPropertyDto.last_activity_time) : null,
+        communication: listPropertyDto.communication,
+        tp_response: listPropertyDto.tp_response,
+        create_task_temporary: listPropertyDto.create_task_temporary,
+        task_temporary_2: listPropertyDto.task_temporary_2,
+        creator_record_id: listPropertyDto.creator_record_id,
+        territory: listPropertyDto.territory,
+        exchange_rate: listPropertyDto.exchange_rate,
+        modified_by: listPropertyDto.modified_by,
+        unit_url: listPropertyDto.unit_url,
+      };
+
+      // Extract building data
+      const buildingData = {
+        building_id: listPropertyDto.building_id,
+        building_property_id: listPropertyDto.building_property_id || await this.generateUniqueBuildingPropertyId(),
+        name: listPropertyDto.name,
+        address: listPropertyDto.address,
+        city: listPropertyDto.city,
+        province: listPropertyDto.province,
+        country: listPropertyDto.country,
+        postal_code: listPropertyDto.postal_code,
+        latitude: listPropertyDto.latitude,
+        longitude: listPropertyDto.longitude,
+        property_type: listPropertyDto.property_type,
+        category: listPropertyDto.category,
+        year_built1: listPropertyDto.year_built1,
+        date_of_construction: listPropertyDto.date_of_construction ? new Date(listPropertyDto.date_of_construction) : null,
+        floor_count: listPropertyDto.floor_count,
+        unit_count: listPropertyDto.unit_count,
+        unit_name: listPropertyDto.unit_name,
+        office_phone_number: listPropertyDto.office_phone_number,
+        office_address: listPropertyDto.office_address,
+        property_management_contact_email: listPropertyDto.property_management_contact_email,
+        owner: listPropertyDto.owner,
+        created_by: listPropertyDto.created_by,
+        modified_by: listPropertyDto.modified_by,
+        territory: listPropertyDto.territory,
+        territory_id: listPropertyDto.territory_id,
+        territory_search_result: listPropertyDto.territory_search_result,
+        currency: listPropertyDto.currency,
+        exchange_rate: listPropertyDto.exchange_rate,
+        setup_fee_property_management: listPropertyDto.setup_fee_property_management,
+        flat_fee_utilities: listPropertyDto.flat_fee_utilities,
+        elevators: listPropertyDto.elevators,
+        parking_garage: listPropertyDto.parking_garage,
+        remote_garage: listPropertyDto.remote_garage,
+        visitor_parking: listPropertyDto.visitor_parking,
+        electric_car_charging_stations: listPropertyDto.electric_car_charging_stations,
+        wheelchair_access: listPropertyDto.wheelchair_access,
+        keyless_entry: listPropertyDto.keyless_entry,
+        security_onsite: listPropertyDto.security_onsite,
+        onsite_staff: listPropertyDto.onsite_staff,
+        laundry_facilities: listPropertyDto.laundry_facilities,
+        rec_room: listPropertyDto.rec_room,
+        day_care_centre: listPropertyDto.day_care_centre,
+        indoor_child_play_area: listPropertyDto.indoor_child_play_area,
+        outdoor_child_play_area: listPropertyDto.outdoor_child_play_area,
+        library: listPropertyDto.library,
+        piano_lounge: listPropertyDto.piano_lounge,
+        concierge_building_management_info: listPropertyDto.concierge_building_management_info,
+        has_golf_range: listPropertyDto.has_golf_range,
+        has_tennis_court: listPropertyDto.has_tennis_court,
+        has_basketball_court: listPropertyDto.has_basketball_court,
+        has_squash_court: listPropertyDto.has_squash_court,
+        has_bowling_alley: listPropertyDto.has_bowling_alley,
+        has_movie_theater: listPropertyDto.has_movie_theater,
+        has_billiards_room: listPropertyDto.has_billiards_room,
+        has_yoga_room: listPropertyDto.has_yoga_room,
+        has_whirlpool: listPropertyDto.has_whirlpool,
+        has_steam_room: listPropertyDto.has_steam_room,
+        has_sauna: listPropertyDto.has_sauna,
+        has_pool: listPropertyDto.has_pool,
+        has_outdoor_pool: listPropertyDto.has_outdoor_pool,
+        pet_spa: listPropertyDto.pet_spa,
+        has_fitness_center: listPropertyDto.has_fitness_center,
+        has_meeting_room: listPropertyDto.has_meeting_room,
+        has_ventilation_hood: listPropertyDto.has_ventilation_hood,
+        outdoor_patio: listPropertyDto.outdoor_patio,
+        has_cabana: listPropertyDto.has_cabana,
+        has_rooftop_patio: listPropertyDto.has_rooftop_patio,
+        has_party_room: listPropertyDto.has_party_room,
+        has_bbq_terrace: listPropertyDto.has_bbq_terrace,
+        has_lobby_lounge: listPropertyDto.has_lobby_lounge,
+        has_guest_suites: listPropertyDto.has_guest_suites,
+        has_business_centre: listPropertyDto.has_business_centre,
+        has_game_room: listPropertyDto.has_game_room,
+        has_bicycle_storage: listPropertyDto.has_bicycle_storage,
+        car_wash: listPropertyDto.car_wash,
+        heat_included1: listPropertyDto.heat_included1,
+        ac_included1: listPropertyDto.ac_included1,
+        internet_included: listPropertyDto.internet_included,
+        cable_included: listPropertyDto.cable_included,
+        water_filtration_softener_rental: listPropertyDto.water_filtration_softener_rental,
+        hot_water_tank_provider: listPropertyDto.hot_water_tank_provider,
+        gas_provider: listPropertyDto.gas_provider,
+        hydro_provider: listPropertyDto.hydro_provider,
+        water_provider: listPropertyDto.water_provider,
+        utility_notes: listPropertyDto.utility_notes,
+      };
+
+      // Create or update building first (if building data is provided)
+      let building: any = null;
+      if (buildingData.building_property_id) {
+        // Check if building exists with this building_property_id
+        const existingBuilding = await this.prisma.buildings.findFirst({
+          where: { building_property_id: buildingData.building_property_id },
+        });
+        
+        if (existingBuilding) {
+          // Update existing building
+          building = await this.prisma.buildings.update({
+            where: { id: existingBuilding.id },
+            data: buildingData,
+          });
+        } else {
+          // Create new building
+          building = await this.prisma.buildings.create({
+            data: buildingData,
+          });
+        }
+      }
+
+      // Create property with building association
+      const propertyDataWithBuilding = {
+        ...propertyData,
+        associated_building: building && building.building_property_id ? { id: building.building_property_id } : null,
+      };
+
+      const property = await this.prisma.properties.create({
+        data: propertyDataWithBuilding as any,
+      });
+
+      // Create property details
+      const propertyDetails = await this.prisma.property_details.create({
+        data: {
+          property_id: property.id,
+          ...propertyDetailsData,
+        },
+      });
+
+      return {
+        statusCode: 200,
+        success: true,
+        message: 'Property listed successfully',
+        data: {
+          property,
+          property_details: propertyDetails,
+          building,
+        },
+      };
+    } catch (error) {
+      console.error('Failed to list property:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
+    }
+  }
+
+  async getAllListedProperties(query: GetListedPropertiesDto) {
+    try {
+      const pageNumber = Number(query.page_number);
+      const pageSize = Number(query.page_size);
+      const skip = (pageNumber - 1) * pageSize;
+
+      // Build where clause
+      const whereClause: any = {};
+      
+      if (query.tenant_id) {
+        whereClause.tenant_id = query.tenant_id;
+      }
+      
+      if (query.property_type) {
+        whereClause.property_type = query.property_type;
+      }
+      
+      if (query.city) {
+        whereClause.city = query.city;
+      }
+
+      // Get properties with pagination
+      const properties = await this.prisma.properties.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+        },
+        skip,
+        take: pageSize,
+        orderBy: {
+          created_at: 'desc',
+        },
+      });
+
+      // Get total count
+      const totalCount = await this.prisma.properties.count({
+        where: whereClause,
+      });
+
+      return {
+        statusCode: 200,
+        success: true,
+        message: 'Listed properties retrieved successfully',
+        data: {
+          property_ids: properties.map(p => p.id),
+          pagination: {
+            page_number: pageNumber,
+            page_size: pageSize,
+            total_count: totalCount,
+            total_pages: Math.ceil(totalCount / pageSize),
+          },
+        },
+      };
+    } catch (error) {
+      console.error('Failed to get listed properties:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
+    }
+  }
+
+  async updateListedProperty(updatePropertyDto: UpdateListedPropertyDto, tenant_id?: string) {
+    try {
+      const { property_id, ...updateData } = updatePropertyDto;
+
+      // Check if property exists and belongs to the tenant
+      const existingProperty = await this.prisma.properties.findFirst({
+        where: {
+          id: property_id,
+          tenant_id: tenant_id,
+        },
+      });
+
+      if (!existingProperty) {
+        return {
+          statusCode: 404,
+          success: false,
+          message: 'Property not found or access denied',
+          data: null,
+        };
+      }
+
+      // Extract data for each table
+      const propertyData = {
+        zcrm_id: updateData.zcrm_id,
+        available_date: updateData.available_date ? new Date(updateData.available_date) : null,
+        property_condition: updateData.property_condition,
+        basement_details: updateData.basement_details,
+        basement_included: updateData.basement_included,
+        total_area_sq_ft: updateData.total_area_sq_ft,
+        number_of_floors: updateData.number_of_floors,
+        property_type: updateData.property_type,
+        name: updateData.name,
+        city: updateData.city,
+        address: updateData.address,
+        marketed_price: updateData.marketed_price,
+        fireplace: updateData.fireplace,
+        window_coverings: updateData.window_coverings,
+        flooring_common_area: updateData.flooring_common_area,
+        ceiling_hight: updateData.ceiling_hight,
+        bedrooms: updateData.bedrooms,
+        bedroom_layout: updateData.bedroom_layout,
+        closets: updateData.closets,
+        en_suite_bathrooms: updateData.en_suite_bathrooms,
+        fireplace_bedroom: updateData.fireplace_bedroom,
+        den_can_be_used_as_a_bedroom: updateData.den_can_be_used_as_a_bedroom,
+        bathrooms: updateData.bathrooms,
+        shower_type: updateData.shower_type,
+        upgraded_bathrooms: updateData.upgraded_bathrooms,
+        countertops_bathroom: updateData.countertops_bathroom,
+        central_hvac: updateData.central_hvac ? new Date(updateData.central_hvac) : null,
+        heating_ac_unit: updateData.heating_ac_unit,
+        heated_floors: updateData.heated_floors,
+        washer_dryer: updateData.washer_dryer,
+        furnace: updateData.furnace,
+        hot_water_heater_manufacturer: updateData.hot_water_heater_manufacturer,
+        washer_and_dryer: updateData.washer_and_dryer,
+        air_conditioning_manufacturer: updateData.air_conditioning_manufacturer,
+        countertops: updateData.countertops,
+        dishwasher: updateData.dishwasher,
+        upgraded_kitchen: updateData.upgraded_kitchen,
+        appliance_finishes: updateData.appliance_finishes,
+        new_ice_maker: updateData.new_ice_maker,
+        upgraded_back_splash: updateData.upgraded_back_splash,
+        thumbnail_image: updateData.thumbnail_image,
+        refrigerator_manufacture: updateData.refrigerator_manufacture,
+        stove_oven: updateData.stove_oven,
+        dishwasher_manufacture: updateData.dishwasher_manufacture,
+        microwave_manufacture: updateData.microwave_manufacture,
+        cooktop_manufacture: updateData.cooktop_manufacture,
+        ventilation_hood_manufacture: updateData.ventilation_hood_manufacture,
+        dryer_manufacture: updateData.dryer_manufacture,
+        latitude: updateData.latitude,
+        longitude: updateData.longitude,
+        washer_dryer_in_unit: updateData.washer_dryer_in_unit,
+      };
+
+      // Extract property details data
+      const propertyDetailsData = {
+        owner: updateData.owner,
+        tenant_prospect_marketed_price_multiplied: updateData.tenant_prospect_marketed_price_multiplied,
+        daily_rent: updateData.daily_rent,
+        currency: updateData.currency,
+        setup_fee: updateData.setup_fee,
+        management_fees: updateData.management_fees,
+        link_to_automatically_book_showing: updateData.link_to_automatically_book_showing,
+        important_information_for_booking_showing: updateData.important_information_for_booking_showing,
+        outdoor_pool: updateData.outdoor_pool,
+        unit_owner_deal: updateData.unit_owner_deal,
+        huge_private_terrace: updateData.huge_private_terrace,
+        heat_inclusion: updateData.heat_inclusion,
+        carbon_monoxide_detector: updateData.carbon_monoxide_detector,
+        internet_inclusion: updateData.internet_inclusion,
+        private_garage: updateData.private_garage,
+        tons_of_natural_light: updateData.tons_of_natural_light,
+        central_vaccum: updateData.central_vaccum,
+        ac_inclusion: updateData.ac_inclusion,
+        corner_unit: updateData.corner_unit,
+        walk_in_closets: updateData.walk_in_closets,
+        phone_inclusion: updateData.phone_inclusion,
+        client_support_specialist: updateData.client_support_specialist,
+        noe_contact: updateData.noe_contact,
+        email: updateData.email,
+        postal_code: updateData.postal_code,
+        neighbourhood: updateData.neighbourhood,
+        view: updateData.view,
+        management_start_date: updateData.management_start_date ? new Date(updateData.management_start_date) : null,
+        management_end_date: updateData.management_end_date ? new Date(updateData.management_end_date) : null,
+        management_deal_created: updateData.management_deal_created,
+        date_under_management: updateData.date_under_management ? new Date(updateData.date_under_management) : null,
+        ad_description_with_parking_and_locker: updateData.ad_description_with_parking_and_locker,
+        posting_title_with_parking_and_locker: updateData.posting_title_with_parking_and_locker,
+        email_description: updateData.email_description,
+        social_media_description: updateData.social_media_description,
+        meta_description: updateData.meta_description,
+        linkedin: updateData.linkedin,
+        google_my_business: updateData.google_my_business,
+        instagram: updateData.instagram,
+        youtube_video: updateData.youtube_video,
+        unit_type: updateData.unit_type,
+        unit_category: updateData.unit_category,
+        appliances: updateData.appliances,
+        flooring_in_bedrooms: updateData.flooring_in_bedrooms,
+        storage_details: updateData.storage_details,
+        parking_details: updateData.parking_details,
+        locker_level_and_number: updateData.locker_level_and_number,
+        backyard: updateData.backyard,
+        is_the_backyard_fenced: updateData.is_the_backyard_fenced,
+        gas_provider: updateData.gas_provider,
+        furnace_filter: updateData.furnace_filter,
+        hot_water_tank_provider: updateData.hot_water_tank_provider,
+        washer_manufacture: updateData.washer_manufacture,
+        refrigerator_manufacture: updateData.refrigerator_manufacture,
+        smoke_alarm_1: updateData.smoke_alarm_1,
+        fire_extinguisher1: updateData.fire_extinguisher1,
+        insurance_policy_number: updateData.insurance_policy_number,
+        insurance_home_owner: updateData.insurance_home_owner,
+        create_legal_file: updateData.create_legal_file,
+        max_occupants: updateData.max_occupants,
+        synced_web_tp: updateData.synced_web_tp,
+        point2homes: updateData.point2homes,
+        fully_marketed: updateData.fully_marketed,
+        publish_to_rypm_website: updateData.publish_to_rypm_website,
+        website_verified: updateData.website_verified,
+        unsubscribed_mode: updateData.unsubscribed_mode,
+        active_1_10_days: updateData.active_1_10_days,
+        update_portfolio: updateData.update_portfolio,
+        kijiji_data_importer: updateData.kijiji_data_importer,
+        tenant_cons_email_last_sent: updateData.tenant_cons_email_last_sent ? new Date(updateData.tenant_cons_email_last_sent) : null,
+        noe_vacancy_date: updateData.noe_vacancy_date ? new Date(updateData.noe_vacancy_date) : null,
+        noe_date_and_time_from_owner_portal: updateData.noe_date_and_time_from_owner_portal ? new Date(updateData.noe_date_and_time_from_owner_portal) : null,
+        closing_date: updateData.closing_date ? new Date(updateData.closing_date) : null,
+        when_was_the_property_leased: updateData.when_was_the_property_leased ? new Date(updateData.when_was_the_property_leased) : null,
+        scheduled_photos_and_video: updateData.scheduled_photos_and_video,
+        flushing_of_drain_work_order: updateData.flushing_of_drain_work_order,
+        modified_time: updateData.modified_time,
+        last_activity_time: updateData.last_activity_time ? new Date(updateData.last_activity_time) : null,
+        communication: updateData.communication,
+        tp_response: updateData.tp_response,
+        create_task_temporary: updateData.create_task_temporary,
+        task_temporary_2: updateData.task_temporary_2,
+        creator_record_id: updateData.creator_record_id,
+        territory: updateData.territory,
+        exchange_rate: updateData.exchange_rate,
+        modified_by: updateData.modified_by,
+        unit_url: updateData.unit_url,
+      };
+
+      // Extract building data
+      const buildingData = {
+        building_id: updateData.building_id,
+        building_property_id: updateData.building_property_id || await this.generateUniqueBuildingPropertyId(),
+        name: updateData.name,
+        address: updateData.address,
+        city: updateData.city,
+        province: updateData.province,
+        country: updateData.country,
+        postal_code: updateData.postal_code,
+        latitude: updateData.latitude,
+        longitude: updateData.longitude,
+        property_type: updateData.property_type,
+        category: updateData.category,
+        year_built1: updateData.year_built1,
+        date_of_construction: updateData.date_of_construction ? new Date(updateData.date_of_construction) : null,
+        floor_count: updateData.floor_count,
+        unit_count: updateData.unit_count,
+        unit_name: updateData.unit_name,
+        office_phone_number: updateData.office_phone_number,
+        office_address: updateData.office_address,
+        property_management_contact_email: updateData.property_management_contact_email,
+        owner: updateData.owner,
+        created_by: updateData.created_by,
+        modified_by: updateData.modified_by,
+        territory: updateData.territory,
+        territory_id: updateData.territory_id,
+        territory_search_result: updateData.territory_search_result,
+        currency: updateData.currency,
+        exchange_rate: updateData.exchange_rate,
+        setup_fee_property_management: updateData.setup_fee_property_management,
+        flat_fee_utilities: updateData.flat_fee_utilities,
+        elevators: updateData.elevators,
+        parking_garage: updateData.parking_garage,
+        remote_garage: updateData.remote_garage,
+        visitor_parking: updateData.visitor_parking,
+        electric_car_charging_stations: updateData.electric_car_charging_stations,
+        wheelchair_access: updateData.wheelchair_access,
+        keyless_entry: updateData.keyless_entry,
+        security_onsite: updateData.security_onsite,
+        onsite_staff: updateData.onsite_staff,
+        laundry_facilities: updateData.laundry_facilities,
+        rec_room: updateData.rec_room,
+        day_care_centre: updateData.day_care_centre,
+        indoor_child_play_area: updateData.indoor_child_play_area,
+        outdoor_child_play_area: updateData.outdoor_child_play_area,
+        library: updateData.library,
+        piano_lounge: updateData.piano_lounge,
+        concierge_building_management_info: updateData.concierge_building_management_info,
+        has_golf_range: updateData.has_golf_range,
+        has_tennis_court: updateData.has_tennis_court,
+        has_basketball_court: updateData.has_basketball_court,
+        has_squash_court: updateData.has_squash_court,
+        has_bowling_alley: updateData.has_bowling_alley,
+        has_movie_theater: updateData.has_movie_theater,
+        has_billiards_room: updateData.has_billiards_room,
+        has_yoga_room: updateData.has_yoga_room,
+        has_whirlpool: updateData.has_whirlpool,
+        has_steam_room: updateData.has_steam_room,
+        has_sauna: updateData.has_sauna,
+        has_pool: updateData.has_pool,
+        has_outdoor_pool: updateData.has_outdoor_pool,
+        pet_spa: updateData.pet_spa,
+        has_fitness_center: updateData.has_fitness_center,
+        has_meeting_room: updateData.has_meeting_room,
+        has_ventilation_hood: updateData.has_ventilation_hood,
+        outdoor_patio: updateData.outdoor_patio,
+        has_cabana: updateData.has_cabana,
+        has_rooftop_patio: updateData.has_rooftop_patio,
+        has_party_room: updateData.has_party_room,
+        has_bbq_terrace: updateData.has_bbq_terrace,
+        has_lobby_lounge: updateData.has_lobby_lounge,
+        has_guest_suites: updateData.has_guest_suites,
+        has_business_centre: updateData.has_business_centre,
+        has_game_room: updateData.has_game_room,
+        has_bicycle_storage: updateData.has_bicycle_storage,
+        car_wash: updateData.car_wash,
+        heat_included1: updateData.heat_included1,
+        ac_included1: updateData.ac_included1,
+        internet_included: updateData.internet_included,
+        cable_included: updateData.cable_included,
+        water_filtration_softener_rental: updateData.water_filtration_softener_rental,
+        hot_water_tank_provider: updateData.hot_water_tank_provider,
+        gas_provider: updateData.gas_provider,
+        hydro_provider: updateData.hydro_provider,
+        water_provider: updateData.water_provider,
+        utility_notes: updateData.utility_notes,
+      };
+
+      // Update or create building if building data is provided
+      let building: any = null;
+      if (buildingData.building_property_id) {
+        const existingBuilding = await this.prisma.buildings.findFirst({
+          where: { building_property_id: buildingData.building_property_id },
+        });
+        
+        if (existingBuilding) {
+          building = await this.prisma.buildings.update({
+            where: { id: existingBuilding.id },
+            data: buildingData,
+          });
+        } else {
+          building = await this.prisma.buildings.create({
+            data: buildingData,
+          });
+        }
+      }
+
+      // Update property
+      const propertyDataWithBuilding = {
+        ...propertyData,
+        associated_building: building && building.building_property_id ? { id: building.building_property_id } : null,
+      };
+
+      const property = await this.prisma.properties.update({
+        where: { id: property_id },
+        data: propertyDataWithBuilding as any,
+      });
+
+      // Update property details
+      const propertyDetails = await this.prisma.property_details.update({
+        where: { property_id },
+        data: propertyDetailsData,
+      });
+
+      return {
+        statusCode: 200,
+        success: true,
+        message: 'Property updated successfully',
+        data: {
+          property,
+          property_details: propertyDetails,
+          building,
+        },
+      };
+    } catch (error) {
+      console.error('Failed to update property:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
+    }
   }
 }
