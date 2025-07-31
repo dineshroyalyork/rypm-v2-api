@@ -19,3 +19,13 @@ export function paginateArray<T>(
     page_size,
   };
 }
+
+// Standardized response utilities
+export function successResponse(message: string, data: any, statusCode: number = 200) {
+  return {
+    statusCode,
+    success: true,
+    message,
+    data,
+  };
+}

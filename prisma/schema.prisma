@@ -398,7 +398,7 @@ model properties {
   appliance_finishes            String?
   new_ice_maker                 Boolean?
   upgraded_back_splash          Boolean?
-  thumbnail_image                String?
+  thumbnail_image               String?
 
   // Appliance Brands - Kitchen
   refrigerator_manufacture     String?
@@ -420,6 +420,7 @@ model properties {
   property_details             property_details?
   wishlist_property            wishlist_property[]
   property_attachments         PropertyAttachments[]
+  tour_scheduled               tour_scheduled[]
 }
 
 
@@ -681,6 +682,21 @@ model rental_preference {
 }
 
 
+model slots_availabilities {
+  id          String   @id @default(uuid())
+  property_id String?
+  tenant_id   String?
+  agent_id    String?
+  // Tour date and time
+  week_day    String?
+  open_time   String?
+  close_time  String?
+  // Timestamps
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+}
+
+
 model tenants {
   id                    String   @id @default(uuid())
   first_name            String? // optional
@@ -711,21 +727,31 @@ model tenants {
   bank_details          bank_details?
   documents             document[]
   introductory_video    introductory_video?
+  tour_scheduled        tour_scheduled[] // One tenant can have multiple scheduled tours
 }
 
 
-model tour_slots {
-  id           String   @id @default(uuid())
-  property_id  String?
-  tenant_id    String?
-  agent_id     String?
+model tour_scheduled {
+  id               String    @id @default(uuid())
+  property_id      String
+  tenant_id        String
+  agent_id         String?
   // Tour date and time
-  tour_date    DateTime
-  is_booked    Boolean // Whether the tour slot is booked
-  is_completed Boolean // Whether the tour slot is completed
+  move_in_date     DateTime?
+  monthly_income   Int?
+  credit_score     Int?
+  source_of_income String?
+  occupation       String?
   // Timestamps
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  // Relationships
+  property properties @relation(fields: [property_id], references: [id])
+  tenant   tenants    @relation(fields: [tenant_id], references: [id])
+
+  @@index([property_id])
+  @@index([tenant_id])
 }
 
 

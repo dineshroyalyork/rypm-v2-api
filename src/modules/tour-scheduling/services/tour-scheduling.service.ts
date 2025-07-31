@@ -1,132 +1,129 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@/shared/prisma/prisma.service';
-import { CreateTourSlotsDto } from '../dto/create-tour-slots.dto';
+import { CreateAvailableDaysDto } from '../dto/create-available-days.dto';
 import { GetTourSlotsDto } from '../dto/get-tour-slots.dto';
+import { CreateTourScheduledDto } from '../dto/create-tour-scheduled.dto';
+import { GetTourScheduledDto } from '../dto/get-tour-scheduled.dto';
+import { successResponse } from '@/shared/utils/response';
+import { WinstonLoggerService } from '@/shared/logger/winston-logger.service';
+import { getAvailableTourSlots } from '@/shared/utils/date-utils';
 
 @Injectable()
 export class TourSchedulingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly logger: WinstonLoggerService
+  ) {}
 
-  async createTourSlots(createTourSlotsDto: CreateTourSlotsDto) {
+  async createAvailableDays(createAvailableDaysDto: CreateAvailableDaysDto) {
     try {
-      const { property_id, tour_date, slot_duration_hours } = createTourSlotsDto;
+      const { property_id, weekday, open_time, close_time } = createAvailableDaysDto;
 
-      const baseDate = new Date(tour_date);
-      const slots: any[] = [];
-
-      // Create slots for the specified number of hours on the given date
-      for (let i = 0; i < slot_duration_hours; i++) {
-        const slotDate = new Date(baseDate);
-        slotDate.setHours(9 + i, 0, 0, 0); // Start from 9 AM, each slot is 1 hour
-
-        slots.push({
+      const existingSlots = await this.prisma.slots_availabilities.findFirst({
+        where: {
           property_id,
-          tour_date: slotDate,
-          is_booked: false,
-          is_completed: false,
-        });
-      }
-
-      const result = await (this.prisma as any).tour_slots.createMany({
-        data: slots,
+          week_day: weekday,
+        },
       });
 
-      return {
-        statusCode: 201,
-        status: true,
-        message: 'Tour slots created successfully.',
-        data: result,
-      };
+      if (existingSlots) {
+        throw new BadRequestException('Tour slots already exist for this property and weekday');
+      }
+
+      const slot = await this.prisma.slots_availabilities.create({
+        data: {
+          property_id,
+          week_day: weekday,
+          open_time: open_time,
+          close_time: close_time,
+        },
+      });
+
+      return successResponse('Tour slots template created successfully.', slot);
     } catch (error) {
+      this.logger.error('Error creating tour slots', error);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       throw new InternalServerErrorException(error.message);
     }
   }
 
   async getTourSlots(query: GetTourSlotsDto) {
     try {
-      const { property_id, start_date, end_date } = query;
+      const { property_id, days = 4 } = query;
 
-      const where: any = {};
-
-      if (property_id) {
-        where.property_id = property_id;
+      if (!property_id) {
+        throw new BadRequestException('Property ID is required');
       }
 
-      if (start_date && end_date) {
-        where.tour_date = {
-          gte: new Date(start_date),
-          lte: new Date(end_date),
-        };
-      }
-
-      const tourSlots = await this.prisma.tour_slots.findMany({
-        where,
-        orderBy: {
-          tour_date: 'asc',
+      // Get weekday templates for this property
+      const weekdayTemplates = await this.prisma.slots_availabilities.findMany({
+        where: {
+          property_id,
+        },
+        select: {
+          week_day: true,
+          open_time: true,
+          close_time: true,
         },
       });
 
-      // Group slots by date
-      const groupedSlots: any = {};
+      const filteredTemplates = weekdayTemplates.filter(template => template.week_day && template.open_time && template.close_time) as Array<{
+        week_day: string;
+        open_time: string;
+        close_time: string;
+      }>;
 
-      tourSlots.forEach((slot: any) => {
-        const dateKey = slot.tour_date.toISOString().split('T')[0]; // Get YYYY-MM-DD format
+      const result = getAvailableTourSlots(filteredTemplates, days);
 
-        if (!groupedSlots[dateKey]) {
-          groupedSlots[dateKey] = [];
-        }
-
-        groupedSlots[dateKey].push({
-          id: slot.id,
-          property_id: slot.property_id,
-          tour_date: slot.tour_date,
-          is_booked: slot.is_booked,
-          is_completed: slot.is_completed,
-          created_at: slot.created_at,
-          updated_at: slot.updated_at,
-        });
-      });
-
-      return {
-        statusCode: 201,
-        status: true,
-        message: 'Tour slots retrieved successfully.',
-        data: groupedSlots,
-      };
+      return successResponse('Tour slots retrieved successfully.', result);
     } catch (error) {
+      this.logger.error('Error getting tour slots', error);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       throw new InternalServerErrorException(error.message);
     }
   }
 
-  async getAvailableSlots(property_id: string, tour_date: string) {
+  async createTourScheduled(tenant_id: string, createTourScheduledDto: CreateTourScheduledDto) {
     try {
-      const date = new Date(tour_date);
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
+      const { property_id, move_in_date } = createTourScheduledDto;
 
-      const availableSlots = await this.prisma.tour_slots.findMany({
-        where: {
-          property_id,
-          tour_date: {
-            gte: startOfDay,
-            lte: endOfDay,
+      if (move_in_date) {
+        const startOfSlot = new Date(move_in_date);
+        const endOfSlot = new Date(move_in_date);
+        endOfSlot.setMinutes(endOfSlot.getMinutes() + 30); // 30-minute slot
+
+        const availableSlot = await this.prisma.tour_scheduled.findFirst({
+          where: {
+            property_id,
+            move_in_date: {
+              gte: startOfSlot,
+              lt: endOfSlot,
+            },
+            tenant_id,
           },
-          is_booked: false,
-        },
-        orderBy: {
-          tour_date: 'asc',
+        });
+
+        if (availableSlot) {
+          throw new BadRequestException('This slot is already booked');
+        }
+      }
+
+      const tourScheduled = await this.prisma.tour_scheduled.create({
+        data: {
+          ...createTourScheduledDto,
+          tenant_id,
         },
       });
-
-      return {
-        statusCode: 201,
-        status: true,
-        message: 'Available tour slots retrieved successfully.',
-        data: availableSlots,
-      };
+      return successResponse('Tour scheduled successfully.', tourScheduled);
     } catch (error) {
+      this.logger.error('Error creating tour scheduled', error);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       throw new InternalServerErrorException(error.message);
     }
   }

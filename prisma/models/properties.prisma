@@ -48,7 +48,7 @@ model properties {
   appliance_finishes            String?
   new_ice_maker                 Boolean?
   upgraded_back_splash          Boolean?
-  thumbnail_image                String?
+  thumbnail_image               String?
 
   // Appliance Brands - Kitchen
   refrigerator_manufacture     String?
@@ -70,4 +70,5 @@ model properties {
   property_details             property_details?
   wishlist_property            wishlist_property[]
   property_attachments         PropertyAttachments[]
+  tour_scheduled               tour_scheduled[]
 }

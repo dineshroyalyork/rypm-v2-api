@@ -1,0 +1,13 @@
+model slots_availabilities {
+  id          String   @id @default(uuid())
+  property_id String?
+  tenant_id   String?
+  agent_id    String?
+  // Tour date and time
+  week_day    String?
+  open_time   String?
+  close_time  String?
+  // Timestamps
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+}
