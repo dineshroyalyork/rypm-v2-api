@@ -743,6 +743,7 @@ model tour_scheduled {
   source_of_income String?
   occupation       String?
   status           String?
+  type_of_tour     String?
   // Timestamps
   created_at       DateTime  @default(now())
   updated_at       DateTime  @updatedAt

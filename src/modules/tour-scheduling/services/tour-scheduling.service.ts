@@ -116,6 +116,7 @@ export class TourSchedulingService {
         data: {
           ...createTourScheduledDto,
           tenant_id,
+          status: 'PENDING',
         },
       });
       return successResponse('Tour scheduled successfully.', tourScheduled);

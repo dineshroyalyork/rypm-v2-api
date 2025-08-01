@@ -9,6 +9,7 @@ export const createTourScheduledSchema = z.object({
   source_of_income: z.string().optional(),
   occupation: z.string().optional(),
   status: z.string({ message: 'Status should be string' }).optional(),
+  type_of_tour: z.string({ message: 'Type of tour should be string' }).optional(),
 });
 
 export type CreateTourScheduledDto = z.infer<typeof createTourScheduledSchema>;
