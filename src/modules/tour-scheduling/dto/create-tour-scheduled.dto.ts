@@ -8,6 +8,7 @@ export const createTourScheduledSchema = z.object({
   credit_score: z.string({ message: 'Credit score is in string format' }).optional(),
   source_of_income: z.string().optional(),
   occupation: z.string().optional(),
+  status: z.string({ message: 'Status should be string' }).optional(),
 });
 
 export type CreateTourScheduledDto = z.infer<typeof createTourScheduledSchema>;

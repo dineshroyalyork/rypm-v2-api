@@ -742,6 +742,7 @@ model tour_scheduled {
   credit_score     String?
   source_of_income String?
   occupation       String?
+  status           String?
   // Timestamps
   created_at       DateTime  @default(now())
   updated_at       DateTime  @updatedAt
