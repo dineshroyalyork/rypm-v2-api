@@ -739,7 +739,7 @@ model tour_scheduled {
   // Tour date and time
   move_in_date     DateTime?
   monthly_income   Int?
-  credit_score     Int?
+  credit_score     String?
   source_of_income String?
   occupation       String?
   // Timestamps
