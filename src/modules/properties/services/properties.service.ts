@@ -881,11 +881,33 @@ export class PropertiesService {
           },
         });
       }
+      // Count IMAGE and VIDEO attachments
+      let imageCount = 0;
+      let videoCount = 0;
+      
+      if (property.property_attachments && Array.isArray(property.property_attachments)) {
+        property.property_attachments.forEach((attachment: any) => {
+          if (attachment.type === 'IMAGE') {
+            imageCount++;
+          } else if (attachment.type === 'VIDEO') {
+            videoCount++;
+          }
+        });
+      }
+
       return {
         statusCode: 200,
         success: true,
         message: 'Property fetched successfully',
-        data: { ...property, liked, building },
+        data: { 
+          ...property, 
+          liked, 
+          building,
+          attachment_counts: {
+            images: imageCount,
+            videos: videoCount
+          }
+        },
       };
     } catch (error) {
       console.error('Failed to get property by ID:', error.stack);
