@@ -243,6 +243,26 @@ model housing_details {
 }
 
 
+model identity_verification {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  type        String   // e.g., "Government ID", "Passport", "Driver's License"
+  sub_type    String   // e.g., "Front", "Back", "Full"
+  url         String?
+  image_id    String?
+  status      String   @default("pending") // pending, verified, rejected
+  uploaded_at DateTime @default(now())
+  verified_at DateTime?
+  verified_by String?
+  notes       String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  tenant tenants @relation(fields: [tenant_id], references: [id])
+
+  @@unique([tenant_id, type, sub_type])
+} 
+
 model income_sources {
   id                   String   @id @default(uuid())
   tenant_id            String
@@ -711,6 +731,7 @@ model tenants {
   bank_details          bank_details?
   documents             document[]
   introductory_video    introductory_video?
+  identity_verifications identity_verification[] // Added for identity verification relation
 }
 
 

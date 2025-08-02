@@ -28,4 +28,5 @@ model tenants {
   bank_details          bank_details?
   documents             document[]
   introductory_video    introductory_video?
+  identity_verifications identity_verification[] // Added for identity verification relation
 }
