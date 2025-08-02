@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '@/shared/prisma/prisma.service';
 import { PersonalInformationDto, CurrentResidenceDto, AccountInformationDto, SourceOfIncomeDto, ReferenceDetailsDto, PetsDto, VehiclesDto, EmergencyContactDto, BankDetailsDto,DocumentsDto } from '../dto/account-information.dto';
+import { IdentityVerificationArrayDto, UploadIdentityVerificationDto, DeleteIdentityVerificationDto } from '../dto/identity-verification.dto';
 import { InformationType,SourceOfIncome } from '@/shared/enums/account-details.enum';
 import { uploadFile,uploadFileToS3 } from '@/shared/utils/aws';
 import { WinstonLoggerService } from '@/shared/logger/winston-logger.service';
@@ -668,6 +669,155 @@ export class AccountInformationService {
       };
     } catch (error) {
       this.logger.error('Failed to delete document:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
+    }
+  }
+
+  // Identity Verification Methods
+  async createOrUpdateIdentityVerification(
+    tenant_id: string,
+    identityVerificationData: IdentityVerificationArrayDto
+  ) {
+    try {
+      // Delete existing identity verification records for this tenant
+      await this.prisma.identity_verification.deleteMany({
+        where: { tenant_id },
+      });
+
+      // Create new identity verification records
+      const identityVerifications = await Promise.all(
+        identityVerificationData.map(async (data) => {
+          return await this.prisma.identity_verification.create({
+            data: {
+              tenant_id,
+              type: data.type,
+              sub_type: data.sub_type,
+              url: data.url || null,
+              image_id: data.image_id || null,
+              status: data.status || 'pending',
+              notes: data.notes || null,
+            },
+          });
+        })
+      );
+
+      return {
+        statusCode: 200,
+        success: true,
+        message: 'Identity verification records saved successfully',
+        data: identityVerifications,
+      };
+    } catch (error) {
+      this.logger.error('Failed to save identity verification:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
+    }
+  }
+
+  async uploadIdentityVerification(
+    tenant_id: string,
+    type: string,
+    sub_type: string,
+    file: Express.Multer.File
+  ) {
+    try {
+      // Upload file to S3
+      const uploadResult = await uploadFileToS3(file, 'identity-verification');
+
+      // Check if record exists
+      const existingRecord = await this.prisma.identity_verification.findFirst({
+        where: {
+          tenant_id,
+          type,
+          sub_type,
+        },
+      });
+
+      let identityVerification;
+      if (existingRecord) {
+        // Update existing record
+        identityVerification = await this.prisma.identity_verification.update({
+          where: { id: existingRecord.id },
+          data: {
+            url: uploadResult.url,
+            image_id: uploadResult.imageId,
+            status: 'pending',
+            updated_at: new Date(),
+          },
+        });
+      } else {
+        // Create new record
+        identityVerification = await this.prisma.identity_verification.create({
+          data: {
+            tenant_id,
+            type,
+            sub_type,
+            url: uploadResult.url,
+            image_id: uploadResult.imageId,
+            status: 'pending',
+          },
+        });
+      }
+
+      return {
+        statusCode: 200,
+        success: true,
+        message: 'Identity verification document uploaded successfully',
+        data: identityVerification,
+      };
+    } catch (error) {
+      this.logger.error('Failed to upload identity verification:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
+    }
+  }
+
+  async getIdentityVerification(tenant_id: string) {
+    try {
+      const identityVerifications = await this.prisma.identity_verification.findMany({
+        where: { tenant_id },
+        orderBy: { created_at: 'desc' },
+      });
+
+      return {
+        statusCode: 200,
+        success: true,
+        message: 'Identity verification records retrieved successfully',
+        data: identityVerifications,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get identity verification:', error.stack);
+      throw new InternalServerErrorException('Something Went Wrong');
+    }
+  }
+
+  async deleteIdentityVerification(tenant_id: string, id: string) {
+    try {
+      // Check if the identity verification record belongs to the tenant
+      const existingRecord = await this.prisma.identity_verification.findFirst({
+        where: { id, tenant_id },
+      });
+
+      if (!existingRecord) {
+        return {
+          statusCode: 404,
+          success: false,
+          message: 'Identity verification record not found or access denied',
+          data: null,
+        };
+      }
+
+      // Delete the record
+      await this.prisma.identity_verification.delete({
+        where: { id },
+      });
+
+      return {
+        statusCode: 200,
+        success: true,
+        message: 'Identity verification record deleted successfully',
+        data: null,
+      };
+    } catch (error) {
+      this.logger.error('Failed to delete identity verification:', error.stack);
       throw new InternalServerErrorException('Something Went Wrong');
     }
   }

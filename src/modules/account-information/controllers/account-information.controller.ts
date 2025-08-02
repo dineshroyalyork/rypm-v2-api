@@ -7,6 +7,7 @@ import { InformationType } from '@/shared/enums/account-details.enum';
 import { AnyFilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { uploadFileToS3 } from '@/shared/utils/aws';
 import { deleteDocumentSchema, DeleteDocumentDto } from '../dto/delete-document.dto';
+import { identityVerificationArraySchema, deleteIdentityVerificationSchema } from '../dto/identity-verification.dto';
 
 @Controller({ path: 'account-information', version: '2' })
 @UseGuards(AuthGuard)
@@ -94,6 +95,62 @@ export class AccountInformationController {
     const { type, sub_type } = deleteDocumentDto;
 
     return await this.accountInformationService.deleteDocument(tenant_id, type, sub_type);
+  }
+
+  // Identity Verification Endpoints
+  @Post('identity-verification')
+  @UsePipes(new ZodValidationPipe(identityVerificationArraySchema))
+  async createOrUpdateIdentityVerification(
+    @Request() req: any,
+    @Body() identityVerificationData: any
+  ) {
+    const tenant_id = req.user?.sub || req.user?.id;
+    return await this.accountInformationService.createOrUpdateIdentityVerification(tenant_id, identityVerificationData);
+  }
+
+  @Post('identity-verification/upload')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadIdentityVerification(
+    @Request() req: any,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: any
+  ) {
+    const tenant_id = req.user?.sub || req.user?.id;
+    const { type, sub_type } = body;
+
+    if (!file) {
+      return {
+        statusCode: 400,
+        success: false,
+        message: 'No file uploaded',
+        data: null,
+      };
+    }
+
+    return await this.accountInformationService.uploadIdentityVerification(
+      tenant_id,
+      type,
+      sub_type,
+      file
+    );
+  }
+
+  @Get('identity-verification')
+  async getIdentityVerification(@Request() req: any) {
+    const tenant_id = req.user?.sub || req.user?.id;
+    return await this.accountInformationService.getIdentityVerification(tenant_id);
+  }
+
+  @Delete('identity-verification')
+  @UsePipes(new ZodValidationPipe(deleteIdentityVerificationSchema))
+  async deleteIdentityVerification(
+    @Request() req: any,
+    @Body() deleteIdentityVerificationDto: any
+  ) {
+    const tenant_id = req.user?.sub || req.user?.id;
+    const { id } = deleteIdentityVerificationDto;
+
+    return await this.accountInformationService.deleteIdentityVerification(tenant_id, id);
   }
   
 }

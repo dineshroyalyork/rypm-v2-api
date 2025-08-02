@@ -4,6 +4,7 @@ import { CreateAvailableDaysDto } from '../dto/create-available-days.dto';
 import { GetTourSlotsDto } from '../dto/get-tour-slots.dto';
 import { CreateTourScheduledDto } from '../dto/create-tour-scheduled.dto';
 import { GetTourScheduledDto } from '../dto/get-tour-scheduled.dto';
+import { UpdateTourScheduledDto } from '../dto/update-tour-scheduled.dto';
 import { successResponse } from '@/shared/utils/response';
 import { WinstonLoggerService } from '@/shared/logger/winston-logger.service';
 import { getAvailableTourSlots } from '@/shared/utils/date-utils';
@@ -122,6 +123,92 @@ export class TourSchedulingService {
       return successResponse('Tour scheduled successfully.', tourScheduled);
     } catch (error) {
       this.logger.error('Error creating tour scheduled', error);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
+  async getAllTourScheduled(tenant_id: string, query?: GetTourScheduledDto) {
+    try {
+      const whereClause: any = { tenant_id };
+      
+      // Add status filter if provided
+      if (query?.status) {
+        whereClause.status = query.status;
+      }
+
+      const tours = await this.prisma.tour_scheduled.findMany({
+        where: whereClause,
+        include: {
+          property: {
+            select: {
+              id: true,
+              name: true,
+              address: true,
+              city: true,
+              thumbnail_image: true,
+            },
+          },
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+      });
+
+      return successResponse('Tour scheduled records retrieved successfully.', tours);
+    } catch (error) {
+      this.logger.error('Error getting tour scheduled records', error);
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
+  async updateTourScheduled(tenant_id: string, updateTourScheduledDto: UpdateTourScheduledDto) {
+    try {
+      const { id, status, move_in_date } = updateTourScheduledDto;
+
+      // Check if the tour belongs to the tenant
+      const existingTour = await this.prisma.tour_scheduled.findFirst({
+        where: {
+          id,
+          tenant_id,
+        },
+      });
+
+      if (!existingTour) {
+        throw new BadRequestException('Tour not found or access denied');
+      }
+
+      // Prepare update data
+      const updateData: any = {};
+      if (status) {
+        updateData.status = status;
+      }
+      if (move_in_date) {
+        updateData.move_in_date = new Date(move_in_date);
+      }
+
+      // Update the tour
+      const updatedTour = await this.prisma.tour_scheduled.update({
+        where: { id },
+        data: updateData,
+        include: {
+          property: {
+            select: {
+              id: true,
+              name: true,
+              address: true,
+              city: true,
+              thumbnail_image: true,
+            },
+          },
+        },
+      });
+
+      return successResponse('Tour scheduled updated successfully.', updatedTour);
+    } catch (error) {
+      this.logger.error('Error updating tour scheduled', error);
       if (error instanceof BadRequestException) {
         throw error;
       }

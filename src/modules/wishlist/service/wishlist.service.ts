@@ -322,6 +322,7 @@ export class WishlistService {
               bedrooms: true,
               latitude: true,
               longitude: true,
+              thumbnail_image: true,
               marketed_price: true,
             },
           },

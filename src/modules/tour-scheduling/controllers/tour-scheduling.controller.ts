@@ -1,10 +1,11 @@
-import { Controller, Post, Get, Body, Query, Request, UseGuards, UsePipes } from '@nestjs/common';
+import { Controller, Post, Get, Put, Body, Query, Request, UseGuards, UsePipes } from '@nestjs/common';
 import { AuthGuard } from '@/shared/guards/auth.guard';
 import { TourSchedulingService } from '../services/tour-scheduling.service';
 import { CreateAvailableDaysDto, createAvailableDaysSchema } from '../dto/create-available-days.dto';
 import { getTourSlotsSchema, GetTourSlotsDto } from '../dto/get-tour-slots.dto';
 import { createTourScheduledSchema, CreateTourScheduledDto } from '../dto/create-tour-scheduled.dto';
 import { getTourScheduledSchema, GetTourScheduledDto } from '../dto/get-tour-scheduled.dto';
+import { updateTourScheduledSchema, UpdateTourScheduledDto } from '../dto/update-tour-scheduled.dto';
 import { CustomZodValidationPipe } from '@/shared/pipes/custom-zod-validation.pipe';
 
 @Controller({ path: 'tour-scheduling', version: '2' })
@@ -29,5 +30,21 @@ export class TourSchedulingController {
   async createTourScheduled(@Request() req: any, @Body() createTourScheduledDto: CreateTourScheduledDto) {
     const tenant_id = req.user?.sub || req.user?.id;
     return await this.tourSchedulingService.createTourScheduled(tenant_id, createTourScheduledDto);
+  }
+
+  @Get('scheduled')
+  @UseGuards(AuthGuard)
+  @UsePipes(new CustomZodValidationPipe(getTourScheduledSchema))
+  async getAllTourScheduled(@Request() req: any, @Query() query: GetTourScheduledDto) {
+    const tenant_id = req.user?.sub || req.user?.id;
+    return await this.tourSchedulingService.getAllTourScheduled(tenant_id, query);
+  }
+
+  @Put('scheduled')
+  @UseGuards(AuthGuard)
+  @UsePipes(new CustomZodValidationPipe(updateTourScheduledSchema))
+  async updateTourScheduled(@Request() req: any, @Body() updateTourScheduledDto: UpdateTourScheduledDto) {
+    const tenant_id = req.user?.sub || req.user?.id;
+    return await this.tourSchedulingService.updateTourScheduled(tenant_id, updateTourScheduledDto);
   }
 }
