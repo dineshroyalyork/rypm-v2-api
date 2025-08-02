@@ -149,6 +149,8 @@ export class TourSchedulingService {
               address: true,
               city: true,
               thumbnail_image: true,
+              latitude: true,
+              longitude: true
             },
           },
         },
@@ -201,6 +203,8 @@ export class TourSchedulingService {
               address: true,
               city: true,
               thumbnail_image: true,
+              latitude: true,
+              longitude: true
             },
           },
         },

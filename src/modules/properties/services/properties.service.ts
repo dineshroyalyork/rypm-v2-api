@@ -695,7 +695,10 @@ export class PropertiesService {
       let tourScheduledDetails = new Map();
       if (tenant_id) {
         const tourScheduled = await this.prisma.tour_scheduled.findMany({
-          where: { tenant_id },
+          where: { 
+            tenant_id,
+            property_id: { in: allProperties.map(p => p.id) } // Only get tours for properties in the result
+          },
           select: {
             id: true,
             property_id: true,
@@ -713,12 +716,16 @@ export class PropertiesService {
         });
       }
 
-      let dataWithLiked = allProperties.map(prop => ({
-        ...prop,
-        liked: tenant_id ? likedIds.has(prop.id) : undefined,
-        is_new_property: new Date(prop.updated_at) >= lastWeek,
-        tour_scheduled: tenant_id ? tourScheduledDetails.get(prop.id) || null : null,
-      }));
+      let dataWithLiked = allProperties.map(prop => {
+        const tourScheduled = tenant_id ? tourScheduledDetails.get(prop.id) : null;
+        
+        return {
+          ...prop,
+          liked: tenant_id ? likedIds.has(prop.id) : undefined,
+          is_new_property: new Date(prop.updated_at) >= lastWeek,
+          tour_scheduled: tourScheduled, // Only return tour details if tenant has booked for this property
+        };
+      });
 
       // Geo filter
       if (latitude && longitude && radius) {
@@ -931,6 +938,27 @@ export class PropertiesService {
         };
       }
 
+      // Get tour scheduling details for the tenant if tenant_id is provided
+      let tourScheduled: any = null;
+      if (tenant_id) {
+        const tourResult = await this.prisma.tour_scheduled.findFirst({
+          where: { 
+            tenant_id,
+            property_id: property_id
+          },
+          select: {
+            id: true,
+            property_id: true,
+            agent_id: true,
+            move_in_date: true,
+            status: true,
+            created_at: true,
+            updated_at: true,
+          },
+        });
+        tourScheduled = tourResult;
+      }
+
       return {
         statusCode: 200,
         success: true,
@@ -942,7 +970,8 @@ export class PropertiesService {
           attachment_counts: {
             images: imageCount,
             videos: videoCount
-          }
+          },
+          tour_scheduled: tourScheduled // Only return tour details if tenant has booked for this property
         },
       };
     } catch (error) {
