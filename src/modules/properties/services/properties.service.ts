@@ -694,11 +694,41 @@ export class PropertiesService {
           )
         : new Set();
 
-      let dataWithLiked = allProperties.map(prop => ({
-        ...prop,
-        liked: tenant_id ? likedIds.has(prop.id) : undefined,
-        is_new_property: new Date(prop.updated_at) >= lastWeek,
-      }));
+      // Get tour scheduling details for the tenant if tenant_id is provided
+      let tourScheduledDetails = new Map();
+      if (tenant_id) {
+        const tourScheduled = await this.prisma.tour_scheduled.findMany({
+          where: { 
+            tenant_id,
+            property_id: { in: allProperties.map(p => p.id) } // Only get tours for properties in the result
+          },
+          select: {
+            id: true,
+            property_id: true,
+            agent_id: true,
+            move_in_date: true,
+            status: true,
+            created_at: true,
+            updated_at: true,
+          },
+        });
+        
+        // Create a map for quick lookup
+        tourScheduled.forEach(tour => {
+          tourScheduledDetails.set(tour.property_id, tour);
+        });
+      }
+
+      let dataWithLiked = allProperties.map(prop => {
+        const tourScheduled = tenant_id ? tourScheduledDetails.get(prop.id) : null;
+        
+        return {
+          ...prop,
+          liked: tenant_id ? likedIds.has(prop.id) : undefined,
+          is_new_property: new Date(prop.updated_at) >= lastWeek,
+          tour_scheduled: tourScheduled, // Only return tour details if tenant has booked for this property
+        };
+      });
 
       // Geo filter
       if (latitude && longitude && radius) {
@@ -790,6 +820,7 @@ export class PropertiesService {
           marketed_price: true,
           property_details: {
             select: {
+              owner: true,
               earliest_move_in_date: true,
               hot_water_tank_provider: true,
               refrigerator_manufacture: true,
@@ -884,11 +915,67 @@ export class PropertiesService {
           },
         });
       }
+      // Count IMAGE and VIDEO attachments
+      let imageCount = 0;
+      let videoCount = 0;
+      
+      if (property.property_attachments && Array.isArray(property.property_attachments)) {
+        property.property_attachments.forEach((attachment: any) => {
+          if (attachment.type === 'IMAGE') {
+            imageCount++;
+          } else if (attachment.type === 'VIDEO') {
+            videoCount++;
+          }
+        });
+      }
+
+      // Transform owner data with additional fields
+      let transformedProperty = { ...property };
+      if (transformedProperty.property_details?.owner && typeof transformedProperty.property_details.owner === 'object') {
+        transformedProperty.property_details.owner = {
+          ...transformedProperty.property_details.owner,
+          type: "Property Owner",
+          name: "Mark A.",
+          owner_image: "https://d2b67d11lk2106.cloudfront.net/tenants/tenant_d93247c8-7f58-4ca7-82dd-8a0c8241c2bf/documents/Government_id/1754043622854_image 81.png",
+          verified: true
+        };
+      }
+
+      // Get tour scheduling details for the tenant if tenant_id is provided
+      let tourScheduled: any = null;
+      if (tenant_id) {
+        const tourResult = await this.prisma.tour_scheduled.findFirst({
+          where: { 
+            tenant_id,
+            property_id: property_id
+          },
+          select: {
+            id: true,
+            property_id: true,
+            agent_id: true,
+            move_in_date: true,
+            status: true,
+            created_at: true,
+            updated_at: true,
+          },
+        });
+        tourScheduled = tourResult;
+      }
+
       return {
         statusCode: 200,
         success: true,
         message: 'Property fetched successfully',
-        data: { ...property, liked, building },
+        data: { 
+          ...transformedProperty, 
+          liked, 
+          building,
+          attachment_counts: {
+            images: imageCount,
+            videos: videoCount
+          },
+          tour_scheduled: tourScheduled // Only return tour details if tenant has booked for this property
+        },
       };
     } catch (error) {
       console.error('Failed to get property by ID:', error.stack);

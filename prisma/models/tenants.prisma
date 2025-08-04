@@ -29,4 +29,6 @@ model tenants {
   documents             document[]
   introductory_video    introductory_video?
   properties            properties[]
+  tour_scheduled        tour_scheduled[] // One tenant can have multiple scheduled tours
+  identity_verifications identity_verification[] // Added for identity verification relation
 }

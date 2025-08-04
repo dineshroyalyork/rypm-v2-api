@@ -103,6 +103,7 @@ export class LikedService {
           latitude: true,
           longitude: true,
           marketed_price: true,
+          thumbnail_image: true,
         },
       });
     

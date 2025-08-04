@@ -506,7 +506,7 @@ export class BuildingsService {
         throw new BadRequestException('No valid records found in CSV');
       }
 
-      console.log(`Processing ${records.length} building records from CSV`);
+      console.log(`Processing ${records.length} buildings records from CSV`);
       console.log('Sample record:', records[0]);
 
       const results = {

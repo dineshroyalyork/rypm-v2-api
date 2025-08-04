@@ -1,0 +1,24 @@
+model tour_scheduled {
+  id               String    @id @default(uuid())
+  property_id      String
+  tenant_id        String
+  agent_id         String?
+  // Tour date and time
+  move_in_date     DateTime?
+  monthly_income   Int?
+  credit_score     String?
+  source_of_income String?
+  occupation       String?
+  status           String?
+  type_of_tour     String?
+  // Timestamps
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  // Relationships
+  property properties @relation(fields: [property_id], references: [id])
+  tenant   tenants    @relation(fields: [tenant_id], references: [id])
+
+  @@index([property_id])
+  @@index([tenant_id])
+}
