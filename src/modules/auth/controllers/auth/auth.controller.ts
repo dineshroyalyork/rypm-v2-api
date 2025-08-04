@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Patch, Post, Req, UseGuards, UsePipes } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Patch, Post, Req, UseGuards, UsePipes } from '@nestjs/common';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { SendOtpDto, sendOtpSchema } from '../../dto/send-otp.dto';
 import { VerifyOtpDto, verifyOtpSchema } from '../../dto/verify-otp.dto';
@@ -97,5 +97,30 @@ export class AuthController {
   @Post('login/email-password')
   async loginWithEmail(@Body() loginWithEmailDto: LoginWithEmailDto) {
     return this.authService.loginWithEmailPassword(loginWithEmailDto);
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('me')
+  async getTenantDetails(@Req() req: any) {
+    try {
+      const tenantId = req.user?.sub || req.user?.id;
+      const result = await this.authService.getTenantDetails(tenantId);
+      return result;
+    } catch (error) {
+      console.error('Error occurred:', error);
+      if (error instanceof BadRequestException) {
+        return {
+          statusCode: 400,
+          status: false,
+          message: error.message,
+        };
+      }
+      return {
+        statusCode: 500,
+        status: false,
+        message: 'Internal server error',
+        error: error.message,
+      };
+    }
   }
 }

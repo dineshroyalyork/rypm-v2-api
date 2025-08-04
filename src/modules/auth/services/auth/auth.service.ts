@@ -428,4 +428,49 @@ export class AuthService {
       },
     };
   }
+
+  async getTenantDetails(tenantId: string) {
+    try {
+      const tenant = await this.prisma.tenants.findUnique({
+        where: { id: tenantId },
+        select: {
+          id: true,
+          first_name: true,
+          last_name: true,
+          email: true,
+          phone_number: true,
+          country_code: true,
+          is_email_verified: true,
+          is_phone_verified: true,
+          notifications_enabled: true,
+          created_at: true,
+          updated_at: true,
+        },
+      });
+
+      if (!tenant) {
+        return {
+          statusCode: 404,
+          status: false,
+          message: 'Tenant not found',
+          data: null,
+        };
+      }
+
+      return {
+        statusCode: 200,
+        status: true,
+        message: 'Tenant details retrieved successfully',
+        data: tenant,
+      };
+    } catch (error) {
+      console.error('Error getting tenant details:', error);
+      return {
+        statusCode: 500,
+        status: false,
+        message: 'Failed to get tenant details',
+        data: null,
+      };
+    }
+  }
 }

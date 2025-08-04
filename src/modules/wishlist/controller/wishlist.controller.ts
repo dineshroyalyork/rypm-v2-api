@@ -5,6 +5,7 @@ import {
   Delete,
   Param,
   Post,
+  Put,
   Req,
   UseGuards,
   UsePipes,
@@ -25,6 +26,10 @@ import {
   MovePropertyDto,
   movePropertySchema,
 } from '../dto/move-property.dto';
+import {
+  UpdateWishlistNameDto,
+  updateWishlistNameSchema,
+} from '../dto/update-wishlist-name.dto';
 import { ZodValidationPipe } from 'nestjs-zod';
 
 @UseGuards(AuthGuard)
@@ -85,5 +90,13 @@ export class WishlistController {
   @UsePipes(new ZodValidationPipe(movePropertySchema))
   moveProperty(@Body() movePropertyDto: MovePropertyDto) {
     return this.wishlistService.moveProperty(movePropertyDto);
+  }
+
+  @Put(':id/name')
+  updateWishlistName(
+    @Param('id') wishlist_id: string,
+    @Body() updateWishlistNameDto: UpdateWishlistNameDto,
+  ) {
+    return this.wishlistService.renameWishlist(wishlist_id, updateWishlistNameDto.name);
   }
 }
