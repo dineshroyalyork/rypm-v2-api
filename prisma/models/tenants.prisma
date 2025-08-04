@@ -3,6 +3,7 @@ model tenants {
   first_name            String? // optional
   last_name             String? // optional
   country_code          String? // optional
+  country_iso_code      String? // optional
   email                 String? //optional
   phone_number          String? // optional
   is_email_verified     Boolean  @default(false)

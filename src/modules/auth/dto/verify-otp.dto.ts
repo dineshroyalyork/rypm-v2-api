@@ -10,6 +10,7 @@ export const verifyOtpSchema = z
       .default('phone'),
 
     country_code: z.string().min(1).optional(),
+    country_iso_code: z.string().optional(),
     phone_number: z.string().min(5).optional(),
     email: z.string().email().optional(),
     otp: z

@@ -8,7 +8,7 @@ export const completeOnboardingSchema = z
     email: z.string().email('Invalid email'),
     country_code: z.string().min(1),
     phone_number: z.string().min(5),
-      
+    country_iso_code: z.string().optional(),  
     platform: z.enum(['ios', 'android', 'web'], { message: 'Invalid platform' }),
     device_token: z.string().min(10, 'Invalid device token'),
   })

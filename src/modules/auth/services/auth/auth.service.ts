@@ -79,7 +79,7 @@ export class AuthService {
       is_new_tenant: boolean;
     };
   }> {
-    const { type, email, phone_number, country_code, otp } = payload;
+    const { type, email, phone_number, country_code, otp,country_iso_code } = payload;
 
     const normalizedCountryCode = country_code?.startsWith('+')
       ? country_code
@@ -136,6 +136,7 @@ export class AuthService {
           email: email || '',
           phone_number: phone_number || '',
           country_code: country_code || '',
+          country_iso_code: country_iso_code || '',
           first_name: '',
           last_name: '',
           is_email_verified: !!email,
@@ -174,6 +175,7 @@ export class AuthService {
         country_code,
         device_token,
         platform,
+        country_iso_code,
       } = payload;
 
       const existing = await this.prisma.tenants.findUnique({
@@ -199,6 +201,7 @@ export class AuthService {
           country_code,
           is_email_verified: !!email,
           is_phone_verified: !!phone_number,
+          country_iso_code,
         },
     });
 
@@ -317,6 +320,7 @@ export class AuthService {
           phone_number: '',
           country_code: '',
           password: '',
+          country_iso_code: '',
         },
       });
 
@@ -445,6 +449,7 @@ export class AuthService {
           notifications_enabled: true,
           created_at: true,
           updated_at: true,
+          country_iso_code: true,
         },
       });
 
