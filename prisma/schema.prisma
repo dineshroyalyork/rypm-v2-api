@@ -441,6 +441,9 @@ model properties {
   wishlist_property            wishlist_property[]
   property_attachments         PropertyAttachments[]
   tour_scheduled               tour_scheduled[]
+  residents                    residents[]
+  roommates                    roommates[]
+  tenant_stays                 tenant_stays[]
 }
 
 
@@ -702,6 +705,71 @@ model rental_preference {
 }
 
 
+model residents {
+  id                      String     @id @default(uuid())
+  property_id             String
+  tenant_id               String
+  owner_id                String?
+  // Personal Details
+  first_name              String?
+  middle_name             String?
+  sur_name                String?
+  email                   String?
+  phone_number            String?
+  country_code            String?
+  gender                  String?
+  marital_status          String?
+  credit_score            String?
+  government_id_number    String?
+  social_insurance_number String?
+  profile_picture         String?
+  //resident_type
+  residence_type          String?
+  // Income Details
+  source_of_income        String?
+  employment_type         String?
+  occupation              String?
+  current_role            String?
+  monthly_income          Int?
+  //employment details
+  who_you_work_for        String?
+  start_date              DateTime?
+  manager_name            String?
+  manager_phone_number    String?
+  manager_country_code    String?
+  manager_email           String?
+  // Timestamps
+  created_at              DateTime   @default(now())
+  updated_at              DateTime   @updatedAt
+  // Relationships
+  property                properties @relation(fields: [property_id], references: [id])
+  tenant                  tenants    @relation(fields: [tenant_id], references: [id])
+
+  @@index([property_id])
+  @@index([tenant_id])
+}
+
+
+model roommates {
+  id          String     @id @default(uuid())
+  tenant_id   String
+  property_id String
+  roommate_id String
+  owner_id    String?
+  status      String // Active, Inactive, Pending, etc.
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
+  // Relationships
+  tenant      tenants    @relation("tenant_as_tenant", fields: [tenant_id], references: [id])
+  roommate    tenants    @relation("tenant_as_roommate", fields: [roommate_id], references: [id])
+  property    properties @relation(fields: [property_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([roommate_id])
+  @@index([property_id])
+}
+
+
 model slots_availabilities {
   id          String   @id @default(uuid())
   property_id String?
@@ -714,6 +782,30 @@ model slots_availabilities {
   // Timestamps
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
+}
+
+
+model tenant_stays {
+  id                      String     @id @default(uuid())
+  tenant_id               String
+  property_id             String
+  owner_id                String
+  status                  String // Active, Inactive, Pending, etc.
+  monthly_rent            Int?       @default(0)
+  move_in_date            DateTime?
+  additional_monthly_rent Int?
+  contingencies           String?
+  deposit_amount          Int?       @default(0)
+  created_at              DateTime   @default(now())
+  updated_at              DateTime   @updatedAt
+  // Relationships
+  tenant                  tenants    @relation("tenant_stays", fields: [tenant_id], references: [id])
+  owner                   tenants    @relation("owner_stays", fields: [owner_id], references: [id])
+  property                properties @relation(fields: [property_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([owner_id])
+  @@index([property_id])
 }
 
 
@@ -733,23 +825,30 @@ model tenants {
   updated_at            DateTime @default(now()) @updatedAt
 
   // relations
-  otp_requests          otp_requests[]
-  device_tokens         device_tokens[]
-  login_methods         login_methods[]
-  wishlists             wishlist[]
-  rental_preference     rental_preference[]
-  housing_details       housing_details?
-  income_sources        income_sources[]
-  pets                  pets[]
-  reference_details     reference_details?
-  emergency_contact     emergency_contact?
-  vehicles              vehicles[]
-  personal_informations personal_informations?
-  bank_details          bank_details?
-  documents             document[]
-  introductory_video    introductory_video?
-  tour_scheduled        tour_scheduled[] // One tenant can have multiple scheduled tours
+  otp_requests           otp_requests[]
+  device_tokens          device_tokens[]
+  login_methods          login_methods[]
+  wishlists              wishlist[]
+  rental_preference      rental_preference[]
+  housing_details        housing_details?
+  income_sources         income_sources[]
+  pets                   pets[]
+  reference_details      reference_details?
+  emergency_contact      emergency_contact?
+  vehicles               vehicles[]
+  personal_informations  personal_informations?
+  bank_details           bank_details?
+  documents              document[]
+  introductory_video     introductory_video?
+  tour_scheduled         tour_scheduled[] // One tenant can have multiple scheduled tours
   identity_verifications identity_verification[] // Added for identity verification relation
+  residents              residents[]
+  // Roommate relations
+  tenant_as_tenant       roommates[]             @relation("tenant_as_tenant")
+  tenant_as_roommate     roommates[]             @relation("tenant_as_roommate")
+  // Tenant Stay relations
+  tenant_stays           tenant_stays[]          @relation("tenant_stays")
+  owner_stays            tenant_stays[]          @relation("owner_stays")
 }
 
 

@@ -71,4 +71,7 @@ model properties {
   wishlist_property            wishlist_property[]
   property_attachments         PropertyAttachments[]
   tour_scheduled               tour_scheduled[]
+  residents                    residents[]
+  roommates                    roommates[]
+  tenant_stays                 tenant_stays[]
 }

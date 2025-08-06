@@ -1,0 +1,18 @@
+model roommates {
+  id          String     @id @default(uuid())
+  tenant_id   String
+  property_id String
+  roommate_id String
+  owner_id    String?
+  status      String
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
+  // Relationships
+  tenant      tenants    @relation("tenant_as_tenant", fields: [tenant_id], references: [id])
+  roommate    tenants    @relation("tenant_as_roommate", fields: [roommate_id], references: [id])
+  property    properties @relation(fields: [property_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([roommate_id])
+  @@index([property_id])
+}
