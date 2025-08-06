@@ -8,6 +8,8 @@ export const createTenantStaySchema = z.object({
   additional_monthly_rent: z.number().optional(),
   contingencies: z.string().optional(),
   deposit_amount: z.number().optional(),
+  terms_and_conditions: z.boolean({ message: 'Terms and conditions should be a boolean' }).optional(),
+  offer_cancellation_policy: z.boolean({ message: 'Offer cancellation policy should be a boolean' }).optional(),
 });
 
 export type CreateTenantStayDto = z.infer<typeof createTenantStaySchema>;

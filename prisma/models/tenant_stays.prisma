@@ -1,20 +1,22 @@
 model tenant_stays {
-  id                      String     @id @default(uuid())
-  tenant_id               String
-  property_id             String
-  owner_id                String
-  status                  String
-  monthly_rent            Int?       @default(0)
-  move_in_date            DateTime?
-  additional_monthly_rent Int?
-  contingencies           String?
-  deposit_amount          Int?       @default(0)
-  created_at              DateTime   @default(now())
-  updated_at              DateTime   @updatedAt
+  id                        String     @id @default(uuid())
+  tenant_id                 String
+  property_id               String
+  owner_id                  String
+  status                    String
+  monthly_rent              Int?       @default(0)
+  move_in_date              DateTime?
+  additional_monthly_rent   Int?
+  contingencies             String?
+  terms_and_conditions      Boolean?   @default(false)
+  offer_cancellation_policy Boolean?   @default(false)
+  deposit_amount            Int?       @default(0)
+  created_at                DateTime   @default(now())
+  updated_at                DateTime   @updatedAt
   // Relationships
-  tenant                  tenants    @relation("tenant_stays", fields: [tenant_id], references: [id])
-  owner                   tenants    @relation("owner_stays", fields: [owner_id], references: [id])
-  property                properties @relation(fields: [property_id], references: [id])
+  tenant                    tenants    @relation("tenant_stays", fields: [tenant_id], references: [id])
+  owner                     tenants    @relation("owner_stays", fields: [owner_id], references: [id])
+  property                  properties @relation(fields: [property_id], references: [id])
 
   @@index([tenant_id])
   @@index([owner_id])

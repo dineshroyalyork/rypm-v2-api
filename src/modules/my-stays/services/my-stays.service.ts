@@ -11,6 +11,7 @@ import { GetTenantStaysDto } from '../dto/get-tenant-stays.dto';
 import { successResponse } from '@/shared/utils/response';
 import { WinstonLoggerService } from '@/shared/logger/winston-logger.service';
 import { RoommateRequestStatus } from '@/shared/enums/my-stays.enum';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class MyStaysService {
@@ -211,37 +212,72 @@ export class MyStaysService {
     try {
       const { status } = query;
 
-      const whereClause: any = {
-        OR: [{ tenant_id }, { owner_id: tenant_id }],
-      };
+      const whereClause = status ? `AND ts.status = '${status}'` : '';
 
-      if (status) {
-        whereClause.status = status;
-      }
+      // Single query with joins for flat structure
+      const tenantStays = await this.prisma.$queryRaw`
+        SELECT 
+          ts.id,
+          ts.status,
+          ts.monthly_rent,
+          ts.move_in_date,
+          ts.deposit_amount,
+          ts.created_at,
+          -- Property info
+          p.id as property_id,
+          p.name as property_name,
+         
+          -- Property detai
+          pd.cable_inclusion,
+          pd.water_provider,
+          pd.hot_water_tank_provider,
+          pd.electricity_inclusion,
+          pd.internet_inclusion,
+          pd.number_of_parking_spaces,
+          pd.number_of_lockers,
+          pd.gas_provider,
 
-      const tenantStays = await this.prisma.tenant_stays.findMany({
-        where: whereClause,
-        include: {
-          property: true,
-          tenant: {
-            select: {
-              id: true,
-              first_name: true,
-              last_name: true,
-              email: true,
-            },
-          },
-          owner: {
-            select: {
-              id: true,
-              first_name: true,
-              last_name: true,
-              email: true,
-            },
-          },
-        },
-        orderBy: { created_at: 'desc' },
-      });
+          -- Tenant info
+          t.first_name as tenant_first_name,
+          t.last_name as tenant_last_name,
+          t.email as tenant_email,
+          
+          -- Owner info
+          o.first_name as owner_first_name,
+          o.last_name as owner_last_name,
+          o.email as owner_email,
+          
+          -- Residents info (JSON array)
+          COALESCE(
+            JSON_AGG(
+              JSON_BUILD_OBJECT(
+                'id', r.id,
+                'first_name', r.first_name,
+                'sur_name', r.sur_name,
+                'email', r.email,
+                'residence_type', r.residence_type
+              )
+            ) FILTER (WHERE r.id IS NOT NULL),
+            '[]'::json
+          ) as residents
+          
+        FROM tenant_stays ts
+        LEFT JOIN properties p ON ts.property_id = p.id
+        LEFT JOIN property_details pd ON ts.property_id = pd.property_id
+        LEFT JOIN tenants t ON ts.tenant_id = t.id
+        LEFT JOIN tenants o ON ts.owner_id = o.id
+        LEFT JOIN residents r ON t.id = r.tenant_id
+        WHERE (ts.tenant_id = ${tenant_id} OR ts.owner_id = ${tenant_id})
+        ${whereClause ? Prisma.raw(whereClause) : Prisma.empty}
+        GROUP BY 
+          ts.id, ts.status, ts.monthly_rent, ts.move_in_date, ts.deposit_amount, ts.created_at,
+          p.id, p.name,
+          pd.cable_inclusion, pd.water_provider, pd.hot_water_tank_provider, pd.electricity_inclusion, pd.internet_inclusion,
+          pd.number_of_parking_spaces, pd.number_of_lockers, pd.gas_provider,
+          t.first_name, t.last_name, t.email,
+          o.first_name, o.last_name, o.email
+        ORDER BY ts.created_at DESC
+      `;
 
       return successResponse('Tenant stays retrieved successfully.', tenantStays);
     } catch (error) {
