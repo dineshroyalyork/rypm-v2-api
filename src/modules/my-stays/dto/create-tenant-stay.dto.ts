@@ -7,7 +7,7 @@ export const createTenantStaySchema = z.object({
   move_in_date: z.string({ message: 'Move in date should be in Date format' }).optional(),
   additional_monthly_rent: z.number().optional(),
   contingencies: z.string().optional(),
-  deposit_amount: z.number().optional(),
+  deposit_amount: z.number({ message: 'Deposit amount should be a number' }).optional(),
   terms_and_conditions: z.boolean({ message: 'Terms and conditions should be a boolean' }).optional(),
   offer_cancellation_policy: z.boolean({ message: 'Offer cancellation policy should be a boolean' }).optional(),
 });

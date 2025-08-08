@@ -5,7 +5,7 @@ model tour_scheduled {
   agent_id         String?
   // Tour date and time
   move_in_date     DateTime?
-  monthly_income   Int?
+  monthly_income   Float?
   credit_score     String?
   source_of_income String?
   occupation       String?

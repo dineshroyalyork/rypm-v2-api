@@ -5,25 +5,26 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-}
+} 
 
 model bank_details {
-  id                  String  @id @default(uuid()) // Unique ID for the bank details
-  tenant_id           String  @unique // Foreign key to link bank details to a user
-  account_holder_name String // Full name as it appears on the bank account
-  bank_name           String // Name of the bank (e.g., Scotiabank)
-  institution_number  String // 3-digit institution number
-  transit_number      String // 5-digit transit number
-  account_number      String // Personal account number (usually 7-12 digits)
-  direct_deposit_form String? // File upload for direct deposit form, nullable (can be NULL if not uploaded)
-  branch_address      String?
+  id                    String   @id @default(uuid())   // Unique ID for the bank details
+  tenant_id               String   @unique // Foreign key to link bank details to a user
+  account_holder_name   String   // Full name as it appears on the bank account
+  bank_name             String   // Name of the bank (e.g., Scotiabank)
+  institution_number    String   // 3-digit institution number
+  transit_number        String   // 5-digit transit number
+  account_number        String   // Personal account number (usually 7-12 digits)
+  direct_deposit_form   String?  // File upload for direct deposit form, nullable (can be NULL if not uploaded)
+  branch_address        String?
 
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
 
   // Relationships
-  tenant tenants @relation(fields: [tenant_id], references: [id])
+  tenant        tenants  @relation(fields: [tenant_id], references: [id])
 }
+
 
 model buildings {
   id                                   String    @id @default(uuid())
@@ -166,16 +167,17 @@ model buildings {
   updated_at                           DateTime  @default(now()) @updatedAt
 }
 
+
 model device_tokens {
-  id         String   @id @default(uuid())
-  token      String // FCM or APNs token
-  platform   String // "ios" | "android" | "web"
-  created_at DateTime @default(now())
+   id           String     @id @default(uuid())
+  token        String     // FCM or APNs token
+  platform     String     // "ios" | "android" | "web"
+  created_at   DateTime   @default(now())
 
   // relation
-  tenant_id String
-  tenant    tenants @relation(fields: [tenant_id], references: [id])
-}
+  tenant_id    String
+  tenant       tenants     @relation(fields: [tenant_id], references: [id])
+} 
 
 model document {
   id          String   @id @default(uuid())
@@ -192,20 +194,21 @@ model document {
   @@unique([tenant_id, sub_type])
 }
 
+
 model emergency_contact {
-  id            String  @id @default(uuid())
-  tenant_id     String  @unique
-  first_name    String?
-  last_name     String?
+  id            String   @id @default(uuid())
+  tenant_id        String @unique
+  first_name     String?
+  last_name      String?
   email         String?
-  mobile_number String?
-  country_code  String?
+  mobile_number  String?
+  country_code   String?
   relationship  String?
 
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
 
-  tenant tenants @relation(fields: [tenant_id], references: [id])
+tenant        tenants            @relation(fields: [tenant_id], references: [id])
 }
 
 model housing_details {
@@ -240,25 +243,26 @@ model housing_details {
   tenant tenants @relation(fields: [tenant_id], references: [id])
 }
 
+
 model identity_verification {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   tenant_id   String
-  type        String // e.g., "Government ID", "Passport", "Driver's License"
-  sub_type    String // e.g., "Front", "Back", "Full"
+  type        String   // e.g., "Government ID", "Passport", "Driver's License"
+  sub_type    String   // e.g., "Front", "Back", "Full"
   url         String?
   image_id    String?
-  status      String    @default("pending") // pending, verified, rejected
-  uploaded_at DateTime  @default(now())
+  status      String   @default("pending") // pending, verified, rejected
+  uploaded_at DateTime @default(now())
   verified_at DateTime?
   verified_by String?
   notes       String?
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 
   tenant tenants @relation(fields: [tenant_id], references: [id])
 
   @@unique([tenant_id, type, sub_type])
-}
+} 
 
 model income_sources {
   id                   String    @id @default(uuid())
@@ -272,7 +276,7 @@ model income_sources {
   position_title       String?
   occupation           String?
   start_date           DateTime?
-  monthly_income       Int?
+  monthly_income       Float?
   service_provided     String?
   government_program   String?
   school_name          String?
@@ -284,15 +288,16 @@ model income_sources {
   @@index([tenant_id]) // optional but useful
 }
 
+
 model introductory_video {
   id          String   @id @default(uuid())
   tenant_id   String
-  url         String // S3 URL or video URL
-  file_name   String // S3 key or file name (e.g., '1753365441615_intro.mp4')
-  status      String // e.g., 'UPLOADED', 'PENDING', 'VERIFIED'
+  url         String   // S3 URL or video URL
+  file_name   String   // S3 key or file name (e.g., '1753365441615_intro.mp4')
+  status      String   // e.g., 'UPLOADED', 'PENDING', 'VERIFIED'
   uploaded_at DateTime @default(now())
 
-  tenant tenants @relation(fields: [tenant_id], references: [id])
+  tenant      tenants  @relation(fields: [tenant_id], references: [id])
 
   @@unique([tenant_id]) // Each tenant can have only one video (remove if you want multiple)
 }
@@ -326,59 +331,58 @@ model leave_notices {
   @@index([property_id])
 }
 
+
 model Liked {
-  id           String   @id @default(uuid())
-  tenant_id    String   @unique
+  id          String   @id @default(uuid())
+  tenant_id   String   @unique
   property_ids String[]
 }
 
 model login_methods {
-  id          String   @id @default(uuid())
-  provider    String // "google" | "apple" | "facebook" | "magic-link"
-  provider_id String // unique ID from provider
-  created_at  DateTime @default(now())
+  id           String     @id @default(uuid())
+  provider     String     // "google" | "apple" | "facebook" | "magic-link"
+  provider_id  String     // unique ID from provider
+  created_at   DateTime   @default(now())
 
   // relation
-  tenant_id String
-  tenant    tenants @relation(fields: [tenant_id], references: [id])
-}
+  tenant_id    String
+  tenant       tenants     @relation(fields: [tenant_id], references: [id])
+} 
 
 model my_stays_documents {
-  id          String  @id @default(uuid())
-  tenant_id   String
-  property_id String
-  owner_id    String?
-
+  id            String     @id @default(uuid())
+  tenant_id     String
+  property_id   String
+  owner_id      String?
   // Document Details
   document_type String // water_transfer, electricity, gas_transfer, hot_water_tank, tenant_insurance, lease_agreement, offer_to_lease, move_out_photos, leave_notice
   image_url     String // S3 URL
-  is_uploaded   Boolean @default(false)
-
+  is_uploaded   Boolean    @default(false)
   // Timestamps
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
   // Relationships
-  tenant   tenants    @relation(fields: [tenant_id], references: [id])
-  property properties @relation(fields: [property_id], references: [id])
+  tenant        tenants    @relation(fields: [tenant_id], references: [id])
+  property      properties @relation(fields: [property_id], references: [id])
 
   @@index([tenant_id])
   @@index([property_id])
   @@index([document_type])
 }
 
+
 model otp_requests {
-  id         String   @id @default(uuid())
-  identifier String // phone or email
-  otp        String
-  expires_at DateTime
-  verified   Boolean  @default(false)
-  created_at DateTime @default(now())
+  id           String     @id @default(uuid())
+  identifier   String     // phone or email
+  otp          String
+  expires_at   DateTime
+  verified     Boolean    @default(false)
+  created_at   DateTime   @default(now())
 
   // relation
-  tenant_id String?
-  tenant    tenants? @relation(fields: [tenant_id], references: [id])
-}
+  tenant_id    String?
+  tenant       tenants?   @relation(fields: [tenant_id], references: [id])
+} 
 
 model personal_informations {
   id                      String   @id @default(uuid())
@@ -400,6 +404,7 @@ model personal_informations {
   tenant                  tenants  @relation(fields: [tenant_id], references: [id])
 }
 
+
 model pets {
   id                 String   @id @default(uuid())
   tenant_id          String
@@ -413,8 +418,9 @@ model pets {
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
 
-  tenant tenants @relation(fields: [tenant_id], references: [id])
+  tenant          tenants @relation(fields: [tenant_id], references: [id])
 }
+
 
 model properties {
   id                            String    @id @default(uuid())
@@ -496,6 +502,7 @@ model properties {
   my_stays_documents           my_stays_documents[]
 }
 
+
 model PropertyAttachments {
   id          String         @id @default(uuid())
   property_id String
@@ -517,6 +524,7 @@ enum AttachmentType {
   IMAGE
   VIDEO
 }
+
 
 model property_details {
   id                                             String     @id @default(uuid())
@@ -719,6 +727,9 @@ model property_details {
   updated_at                                     DateTime   @default(now()) @updatedAt
 }
 
+
+
+
 model reference_details {
   id            String   @id @default(uuid())
   tenant_id     String   @unique
@@ -732,6 +743,7 @@ model reference_details {
   updated_at    DateTime @updatedAt
   tenant        tenants  @relation(fields: [tenant_id], references: [id])
 }
+
 
 model rental_preference {
   id            String   @id @default(uuid())
@@ -747,6 +759,7 @@ model rental_preference {
   updated_at    DateTime @updatedAt
   tenant        tenants  @relation(fields: [tenant_id], references: [id])
 }
+
 
 model residents {
   id                      String     @id @default(uuid())
@@ -793,6 +806,7 @@ model residents {
   @@index([tenant_id])
 }
 
+
 model roommates {
   id          String     @id @default(uuid())
   tenant_id   String
@@ -812,6 +826,7 @@ model roommates {
   @@index([property_id])
 }
 
+
 model slots_availabilities {
   id          String   @id @default(uuid())
   property_id String?
@@ -826,19 +841,20 @@ model slots_availabilities {
   updated_at  DateTime @updatedAt
 }
 
+
 model tenant_stays {
   id                        String     @id @default(uuid())
   tenant_id                 String
   property_id               String
   owner_id                  String
   status                    String
-  monthly_rent              Int?       @default(0)
+  monthly_rent              Float?     @default(0)
   move_in_date              DateTime?
-  additional_monthly_rent   Int?
+  additional_monthly_rent   Float?
   contingencies             String?
   terms_and_conditions      Boolean?   @default(false)
   offer_cancellation_policy Boolean?   @default(false)
-  deposit_amount            Int?       @default(0)
+  deposit_amount            Float?     @default(0)
   created_at                DateTime   @default(now())
   updated_at                DateTime   @updatedAt
   // Relationships
@@ -851,6 +867,7 @@ model tenant_stays {
   @@index([owner_id])
   @@index([property_id])
 }
+
 
 model tenants {
   id                        String                  @id @default(uuid())
@@ -897,6 +914,7 @@ model tenants {
   tenant_my_stays_documents my_stays_documents[]
 }
 
+
 model tour_scheduled {
   id               String    @id @default(uuid())
   property_id      String
@@ -904,7 +922,7 @@ model tour_scheduled {
   agent_id         String?
   // Tour date and time
   move_in_date     DateTime?
-  monthly_income   Int?
+  monthly_income   Float?
   credit_score     String?
   source_of_income String?
   occupation       String?
@@ -922,6 +940,7 @@ model tour_scheduled {
   @@index([tenant_id])
 }
 
+
 model vehicles {
   id            String   @id @default(uuid())
   tenant_id     String
@@ -936,6 +955,7 @@ model vehicles {
   tenant tenants @relation(fields: [tenant_id], references: [id])
 }
 
+
 model wishlist {
   id         String              @id @default(uuid())
   name       String
@@ -946,13 +966,13 @@ model wishlist {
   properties wishlist_property[] // <-- Add this relation field
 }
 
+
 model wishlist_property {
-  wishlist_id String
-  property_id String
+  wishlist_id           String
+  property_id           String
 
-  wishlist   wishlist   @relation(fields: [wishlist_id], references: [id])
-  properties properties @relation(fields: [property_id], references: [id])
-  created_at DateTime   @default(now())
-
+  wishlist              wishlist @relation(fields: [wishlist_id], references: [id])
+  properties              properties @relation(fields: [property_id], references: [id])
+  created_at   DateTime @default(now())
   @@id([wishlist_id, property_id])
 }

@@ -1,5 +1,5 @@
 model income_sources {
-  id                   String   @id @default(uuid())
+  id                   String    @id @default(uuid())
   tenant_id            String
   source_of_income     String
   employer             String?
@@ -10,12 +10,12 @@ model income_sources {
   position_title       String?
   occupation           String?
   start_date           DateTime?
-  monthly_income       Int?
+  monthly_income       Float?
   service_provided     String?
   government_program   String?
   school_name          String?
-  created_at           DateTime @default(now())
-  updated_at           DateTime @updatedAt
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
 
   tenant tenants @relation(fields: [tenant_id], references: [id])
 

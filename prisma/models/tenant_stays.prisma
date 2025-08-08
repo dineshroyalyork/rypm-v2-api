@@ -4,13 +4,13 @@ model tenant_stays {
   property_id               String
   owner_id                  String
   status                    String
-  monthly_rent              Int?       @default(0)
+  monthly_rent              Float?     @default(0)
   move_in_date              DateTime?
-  additional_monthly_rent   Int?
+  additional_monthly_rent   Float?
   contingencies             String?
   terms_and_conditions      Boolean?   @default(false)
   offer_cancellation_policy Boolean?   @default(false)
-  deposit_amount            Int?       @default(0)
+  deposit_amount            Float?     @default(0)
   created_at                DateTime   @default(now())
   updated_at                DateTime   @updatedAt
   // Relationships
