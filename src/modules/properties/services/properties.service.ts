@@ -14,6 +14,20 @@ export type PropertyType = (typeof ALLOWED_PROPERTY_TYPES)[number];
 export class PropertiesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private extractNumericValue(value: string): number | null {
+    if (!value) return null;
+    // Extract numeric part from strings like "2+", "1+", etc.
+    const match = value.match(/^(\d+)/);
+    return match ? parseInt(match[1], 10) : null;
+  }
+
+  private extractStringValue(value: string): string | null {
+    if (!value) return null;
+    // Extract numeric part from strings like "2+", "1+", etc.
+    const match = value.match(/^(\d+)/);
+    return match ? match[1] : null;
+  }
+
   // Fields that appear in Unit Features screen (go to property table)
   private static readonly propertyFields = new Set([
     'zcrm_id',
@@ -593,7 +607,7 @@ export class PropertiesService {
         });
 
         if (rentalPref) {
-          const moveInDateFilter = rentalPref.move_in_date
+          const moveInDateFilter = rentalPref.move_in_date && rentalPref.move_in_date.trim() !== ""
             ? {
                 property_details: {
                   earliest_move_in_date: {
@@ -605,12 +619,12 @@ export class PropertiesService {
             : {};
 
           where = {
-            ...(rentalPref.bedrooms && { bedrooms: { gte: rentalPref.bedrooms } }),
-            ...(rentalPref.bathrooms && { bathrooms: { gte: rentalPref.bathrooms } }),
+            ...(rentalPref.bedrooms && this.extractStringValue(rentalPref.bedrooms) && { bedrooms: { gte: this.extractStringValue(rentalPref.bedrooms) } }),
+            ...(rentalPref.bathrooms && this.extractStringValue(rentalPref.bathrooms) && { bathrooms: { gte: this.extractStringValue(rentalPref.bathrooms) } }),
             ...(rentalPref.property_type && { property_type: rentalPref.property_type }),
-            ...(rentalPref.parking && {
+            ...(rentalPref.parking && this.extractNumericValue(rentalPref.parking) && {
               property_details: {
-                number_of_parking_spaces: { gte: rentalPref.parking },
+                number_of_parking_spaces: { gte: this.extractNumericValue(rentalPref.parking) },
               },
             }),
             ...(rentalPref.price_min || rentalPref.price_max
@@ -625,14 +639,14 @@ export class PropertiesService {
           };
         }
       } else {
-        if (bedrooms) where.bedrooms = { gte: bedrooms.toString() };
-        if (bathrooms) where.bathrooms = { gte: bathrooms.toString() };
+        if (bedrooms && this.extractStringValue(bedrooms)) where.bedrooms = { gte: this.extractStringValue(bedrooms) };
+        if (bathrooms && this.extractStringValue(bathrooms)) where.bathrooms = { gte: this.extractStringValue(bathrooms) };
         if (search) where.name = { contains: search, mode: 'insensitive' };
         if (property_type) where.property_type = property_type;
-        if (parking) {
+        if (parking && this.extractNumericValue(parking)) {
           where.property_details = {
             ...(where.property_details || {}),
-            number_of_parking_spaces: { gte: Number(parking) },
+            number_of_parking_spaces: { gte: this.extractNumericValue(parking) },
           };
         }
         if (min_price || max_price) {
@@ -640,7 +654,7 @@ export class PropertiesService {
           if (min_price) where.marketed_price.gte = Number(min_price);
           if (max_price) where.marketed_price.lte = Number(max_price);
         }
-        if (move_in_date) {
+        if (move_in_date && move_in_date.trim() !== "") {
           const moveIn = new Date(move_in_date);
           const moveInPlus7 = new Date(moveIn);
           moveInPlus7.setDate(moveIn.getDate() + 7);
