@@ -38,6 +38,7 @@ model residents {
   property                properties @relation(fields: [property_id], references: [id])
   tenant                  tenants    @relation(fields: [tenant_id], references: [id])
 
+  @@unique([tenant_id, property_id]) // One resident record per tenant-property combination
   @@index([property_id])
   @@index([tenant_id])
 }

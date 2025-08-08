@@ -1,0 +1,28 @@
+model leave_notices {
+  id                 String    @id @default(uuid())
+  tenant_id          String
+  property_id        String
+  owner_id           String?
+  address            String?
+  apt_unit           String?
+  street_address     String?
+  city               String?
+  province           String?
+  postal_code        String?
+  country            String?
+  move_out_date      DateTime?
+  reason_for_leaving String?
+  write_reason       String?
+  land_lord_name     String?
+  is_n9_form_signed  Boolean?
+
+  created_at DateTime   @default(now())
+  updated_at DateTime   @updatedAt
+  // Relationships
+  tenant     tenants    @relation(fields: [tenant_id], references: [id])
+  property   properties @relation(fields: [property_id], references: [id])
+
+  @@unique([tenant_id, property_id]) // One leave notice per tenant-property combination
+  @@index([tenant_id])
+  @@index([property_id])
+}

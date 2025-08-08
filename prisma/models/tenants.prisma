@@ -1,41 +1,44 @@
 model tenants {
-  id                    String   @id @default(uuid())
-  first_name            String? // optional
-  last_name             String? // optional
-  country_code          String? // optional
-  country_iso_code      String? // optional
-  email                 String? //optional
-  phone_number          String? // optional
-  is_email_verified     Boolean  @default(false)
-  is_phone_verified     Boolean  @default(false)
-  notifications_enabled Boolean  @default(true)
-  password              String? // optional for SSO/magic link
-  created_at            DateTime @default(now())
-  updated_at            DateTime @default(now()) @updatedAt
-
+  id                        String                  @id @default(uuid())
+  first_name                String? // optional
+  last_name                 String? // optional
+  country_code              String? // optional
+  country_iso_code          String? // optional
+  email                     String? //optional
+  phone_number              String? // optional
+  is_email_verified         Boolean                 @default(false)
+  is_phone_verified         Boolean                 @default(false)
+  notifications_enabled     Boolean                 @default(true)
+  password                  String? // optional for SSO/magic link
+  created_at                DateTime                @default(now())
+  updated_at                DateTime                @default(now()) @updatedAt
   // relations
-  otp_requests           otp_requests[]
-  device_tokens          device_tokens[]
-  login_methods          login_methods[]
-  wishlists              wishlist[]
-  rental_preference      rental_preference[]
-  housing_details        housing_details?
-  income_sources         income_sources[]
-  pets                   pets[]
-  reference_details      reference_details?
-  emergency_contact      emergency_contact?
-  vehicles               vehicles[]
-  personal_informations  personal_informations?
-  bank_details           bank_details?
-  documents              document[]
-  introductory_video     introductory_video?
-  tour_scheduled         tour_scheduled[] // One tenant can have multiple scheduled tours
-  identity_verifications identity_verification[] // Added for identity verification relation
-  residents              residents[]
+  otp_requests              otp_requests[]
+  device_tokens             device_tokens[]
+  login_methods             login_methods[]
+  wishlists                 wishlist[]
+  rental_preference         rental_preference[]
+  housing_details           housing_details?
+  income_sources            income_sources[]
+  pets                      pets[]
+  reference_details         reference_details?
+  emergency_contact         emergency_contact?
+  vehicles                  vehicles[]
+  personal_informations     personal_informations?
+  bank_details              bank_details?
+  documents                 document[]
+  introductory_video        introductory_video?
+  tour_scheduled            tour_scheduled[] // One tenant can have multiple scheduled tours
+  identity_verifications    identity_verification[] // Added for identity verification relation
+  residents                 residents[]
   // Roommate relations
-  tenant_as_tenant       roommates[]             @relation("tenant_as_tenant")
-  tenant_as_roommate     roommates[]             @relation("tenant_as_roommate")
+  tenant_as_tenant          roommates[]             @relation("tenant_as_tenant")
+  tenant_as_roommate        roommates[]             @relation("tenant_as_roommate")
   // Tenant Stay relations
-  tenant_stays           tenant_stays[]          @relation("tenant_stays")
-  owner_stays            tenant_stays[]          @relation("owner_stays")
+  tenant_stays              tenant_stays[]          @relation("tenant_stays")
+  owner_stays               tenant_stays[]          @relation("owner_stays")
+  // Leave Notice relations
+  tenant_leave_notices      leave_notices[]
+  // My Stays Document relations
+  tenant_my_stays_documents my_stays_documents[]
 }

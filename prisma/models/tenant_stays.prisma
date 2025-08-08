@@ -18,6 +18,7 @@ model tenant_stays {
   owner                     tenants    @relation("owner_stays", fields: [owner_id], references: [id])
   property                  properties @relation(fields: [property_id], references: [id])
 
+  @@unique([tenant_id, property_id]) // One tenant stay per tenant-property combination
   @@index([tenant_id])
   @@index([owner_id])
   @@index([property_id])

@@ -74,4 +74,6 @@ model properties {
   residents                    residents[]
   roommates                    roommates[]
   tenant_stays                 tenant_stays[]
+  leave_notices                leave_notices[]
+  my_stays_documents           my_stays_documents[]
 }

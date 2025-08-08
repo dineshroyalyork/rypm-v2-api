@@ -8,10 +8,15 @@ import { GetRoommateRequestsDto } from '../dto/get-roommate-requests.dto';
 import { CreateTenantStayDto } from '../dto/create-tenant-stay.dto';
 import { UpdateTenantStayDto } from '../dto/update-tenant-stay.dto';
 import { GetTenantStaysDto } from '../dto/get-tenant-stays.dto';
+import { UploadMyStaysDocumentDto } from '../dto/upload-my-stays-document.dto';
+import { GetMyStaysDocumentsDto } from '../dto/get-my-stays-documents.dto';
 import { successResponse } from '@/shared/utils/response';
 import { WinstonLoggerService } from '@/shared/logger/winston-logger.service';
 import { RoommateRequestStatus } from '@/shared/enums/my-stays.enum';
 import { Prisma } from '@prisma/client';
+import { uploadFileToS3 } from '@/shared/utils/aws';
+import { CreateLeaveNoticeDto } from '../dto/create-leave-notice.dto';
+import { GetLeaveNoticesDto } from '../dto/get-leave-notices.dto';
 
 @Injectable()
 export class MyStaysService {
@@ -22,14 +27,27 @@ export class MyStaysService {
 
   async createResident(tenant_id: string, createResidentDto: CreateResidentDto) {
     try {
-      const resident = await this.prisma.residents.create({
-        data: {
-          ...createResidentDto,
+      const { property_id, ...residentData } = createResidentDto;
+      const resident = await this.prisma.residents.upsert({
+        where: {
+          // Use the unique constraint we just added
+          tenant_id_property_id: {
+            tenant_id,
+            property_id,
+          },
+        },
+        update: {
+          // Update only the fields that are provided (not undefined)
+          ...Object.fromEntries(Object.entries(residentData).filter(([_, value]) => value !== undefined)),
+        },
+        create: {
+          ...residentData,
           tenant_id,
+          property_id,
         },
       });
 
-      return successResponse('Resident created successfully.', resident);
+      return successResponse('Resident data saved successfully.', resident);
     } catch (error) {
       this.logger.error('Error creating resident', error);
       throw new InternalServerErrorException('Something went wrong while creating resident.');
@@ -193,15 +211,30 @@ export class MyStaysService {
   // Tenant Stay Methods
   async createTenantStay(tenant_id: string, createTenantStayDto: CreateTenantStayDto) {
     try {
-      const tenantStay = await this.prisma.tenant_stays.create({
-        data: {
-          ...createTenantStayDto,
+      const { property_id, ...tenantStayData } = createTenantStayDto;
+
+      // Single database call using Prisma's upsert
+      const tenantStay = await this.prisma.tenant_stays.upsert({
+        where: {
+          // Use the unique constraint we just added
+          tenant_id_property_id: {
+            tenant_id,
+            property_id,
+          },
+        },
+        update: {
+          // Update only the fields that are provided (not undefined)
+          ...Object.fromEntries(Object.entries(tenantStayData).filter(([_, value]) => value !== undefined)),
+        },
+        create: {
+          ...tenantStayData,
           tenant_id,
+          property_id,
           status: RoommateRequestStatus.PENDING,
         },
       });
 
-      return successResponse('Tenant stay request created successfully.', tenantStay);
+      return successResponse('Tenant stay data saved successfully.', tenantStay);
     } catch (error) {
       this.logger.error('Error creating tenant stay', error);
       throw new InternalServerErrorException(error.message);
@@ -301,6 +334,169 @@ export class MyStaysService {
       return successResponse(`Tenant stay ${status} successfully.`, updatedStay);
     } catch (error) {
       this.logger.error('Error updating tenant stay', error);
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
+  // Leave Notice Methods
+  async createLeaveNotice(tenant_id: string, createLeaveNoticeDto: CreateLeaveNoticeDto) {
+    try {
+      const { property_id, ...leaveNoticeData } = createLeaveNoticeDto;
+
+      // Single database call using Prisma's upsert
+      const leaveNotice = await this.prisma.leave_notices.upsert({
+        where: {
+          // Use the unique constraint we just added
+          tenant_id_property_id: {
+            tenant_id,
+            property_id,
+          },
+        },
+        update: {
+          // Update only the fields that are provided (not undefined)
+          ...Object.fromEntries(Object.entries(leaveNoticeData).filter(([_, value]) => value !== undefined)),
+        },
+        create: {
+          ...leaveNoticeData,
+          tenant_id,
+          property_id,
+        },
+      });
+
+      return successResponse('Leave notice data saved successfully.', leaveNotice);
+    } catch (error) {
+      this.logger.error('Error creating leave notice', error);
+      throw new InternalServerErrorException('Something went wrong while creating leave notice.');
+    }
+  }
+
+  async getLeaveNotices(tenant_id: string, query: GetLeaveNoticesDto) {
+    try {
+      const { property_id } = query;
+
+      const whereClause: any = {
+        OR: [{ tenant_id }, { owner_id: tenant_id }],
+      };
+
+      if (property_id) {
+        whereClause.property_id = property_id;
+      }
+
+      const leaveNotices = await Promise.all([
+        this.prisma.leave_notices.findMany({
+          where: whereClause,
+          include: {
+            property: {
+              select: {
+                id: true,
+                name: true,
+                address: true,
+              },
+            },
+            tenant: {
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+                email: true,
+              },
+            },
+          },
+          orderBy: {
+            created_at: 'desc',
+          },
+        }),
+        this.prisma.leave_notices.count({
+          where: whereClause,
+        }),
+      ]);
+
+      return successResponse('Leave notices retrieved successfully.', {
+        leaveNotices,
+      });
+    } catch (error) {
+      this.logger.error('Error getting leave notices', error);
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
+  // My Stays Documents Methods (Simple Upload & Get)
+  async uploadMyStaysDocument(tenant_id: string, uploadDto: UploadMyStaysDocumentDto, files: Express.Multer.File[]) {
+    try {
+      const { property_id, owner_id, document_type } = uploadDto;
+
+      // Upload ALL files to S3 and create records in ONE transaction
+      const uploadPromises = files.map(async file => {
+        const uploadResult = await uploadFileToS3(file, 'my-stays', document_type, property_id);
+
+        // Create document record
+        return await this.prisma.my_stays_documents.create({
+          data: {
+            tenant_id,
+            property_id,
+            owner_id,
+            is_uploaded: true,
+            document_type,
+            image_url: uploadResult.url,
+          },
+        });
+      });
+
+      // Wait for ALL uploads to complete
+      const uploadedDocuments = await Promise.all(uploadPromises);
+
+      return successResponse(`${uploadedDocuments.length} documents uploaded successfully.`, uploadedDocuments);
+    } catch (error) {
+      this.logger.error('Error uploading my stays documents', error);
+      throw new InternalServerErrorException('Something went wrong while uploading documents.');
+    }
+  }
+
+  async getMyStaysDocuments(tenant_id: string, query: GetMyStaysDocumentsDto) {
+    try {
+      const { property_id, document_type, status } = query;
+
+      const whereClause: any = {
+        OR: [{ tenant_id }, { owner_id: tenant_id }],
+      };
+
+      if (property_id) {
+        whereClause.property_id = property_id;
+      }
+      if (document_type) {
+        whereClause.document_type = document_type;
+      }
+      if (status) {
+        whereClause.status = status;
+      }
+
+      const documents = await this.prisma.my_stays_documents.findMany({
+        where: whereClause,
+        include: {
+          property: {
+            select: {
+              id: true,
+              name: true,
+              address: true,
+            },
+          },
+          tenant: {
+            select: {
+              id: true,
+              first_name: true,
+              last_name: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+      });
+
+      return successResponse('My stays documents retrieved successfully.', documents);
+    } catch (error) {
+      this.logger.error('Error getting my stays documents', error);
       throw new InternalServerErrorException(error.message);
     }
   }

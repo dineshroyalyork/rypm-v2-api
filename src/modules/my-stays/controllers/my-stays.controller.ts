@@ -1,4 +1,5 @@
-import { Controller, Post, Get, Put, Delete, Body, Query, Request, UseGuards, UsePipes, Param } from '@nestjs/common';
+import { Controller, Post, Get, Put, Delete, Body, Query, Request, UseGuards, UsePipes, Param, UseInterceptors, UploadedFiles } from '@nestjs/common';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@/shared/guards/auth.guard';
 import { MyStaysService } from '../services/my-stays.service';
 import { CreateResidentDto, createResidentSchema } from '../dto/create-resident.dto';
@@ -9,6 +10,10 @@ import { GetRoommateRequestsDto, getRoommateRequestsSchema } from '../dto/get-ro
 import { CreateTenantStayDto, createTenantStaySchema } from '../dto/create-tenant-stay.dto';
 import { UpdateTenantStayDto, updateTenantStaySchema } from '../dto/update-tenant-stay.dto';
 import { GetTenantStaysDto, getTenantStaysSchema } from '../dto/get-tenant-stays.dto';
+import { CreateLeaveNoticeDto, createLeaveNoticeSchema } from '../dto/create-leave-notice.dto';
+import { GetLeaveNoticesDto, getLeaveNoticesSchema } from '../dto/get-leave-notices.dto';
+import { UploadMyStaysDocumentDto, uploadMyStaysDocumentSchema } from '../dto/upload-my-stays-document.dto';
+import { GetMyStaysDocumentsDto, getMyStaysDocumentsSchema } from '../dto/get-my-stays-documents.dto';
 import { CustomZodValidationPipe } from '@/shared/pipes/custom-zod-validation.pipe';
 
 @Controller({ path: 'my-stays', version: '2' })
@@ -78,5 +83,36 @@ export class MyStaysController {
   async updateTenantStay(@Request() req: any, @Body() updateTenantStayDto: UpdateTenantStayDto) {
     const tenant_id = req.user?.sub || req.user?.id;
     return await this.myStaysService.updateTenantStay(tenant_id, updateTenantStayDto);
+  }
+
+  // Leave Notice Endpoints
+  @Post('leave-notices')
+  @UsePipes(new CustomZodValidationPipe(createLeaveNoticeSchema))
+  async createLeaveNotice(@Request() req: any, @Body() createLeaveNoticeDto: CreateLeaveNoticeDto) {
+    const tenant_id = req.user?.sub || req.user?.id;
+    return await this.myStaysService.createLeaveNotice(tenant_id, createLeaveNoticeDto);
+  }
+
+  @Get('leave-notices')
+  @UsePipes(new CustomZodValidationPipe(getLeaveNoticesSchema))
+  async getLeaveNotices(@Request() req: any, @Query() query: GetLeaveNoticesDto) {
+    const tenant_id = req.user?.sub || req.user?.id;
+    return await this.myStaysService.getLeaveNotices(tenant_id, query);
+  }
+
+  // My Stays Documents Endpoints (Simple Upload & Get)
+  @Post('documents/upload')
+  @UseInterceptors(AnyFilesInterceptor())
+  @UsePipes(new CustomZodValidationPipe(uploadMyStaysDocumentSchema))
+  async uploadMyStaysDocument(@Request() req: any, @UploadedFiles() files: Express.Multer.File[], @Body() uploadDto: UploadMyStaysDocumentDto) {
+    const tenant_id = req.user?.sub || req.user?.id;
+    return await this.myStaysService.uploadMyStaysDocument(tenant_id, uploadDto, files);
+  }
+
+  @Get('documents')
+  @UsePipes(new CustomZodValidationPipe(getMyStaysDocumentsSchema))
+  async getMyStaysDocuments(@Request() req: any, @Query() query: GetMyStaysDocumentsDto) {
+    const tenant_id = req.user?.sub || req.user?.id;
+    return await this.myStaysService.getMyStaysDocuments(tenant_id, query);
   }
 }
