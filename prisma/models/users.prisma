@@ -1,0 +1,20 @@
+enum UserRole {
+  MANAGER
+  AGENT
+  // Add more roles as needed
+}
+
+model users {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password      String
+  first_name    String
+  last_name     String
+  role          UserRole
+  phone_number  String?
+  country_code  String?
+  manager_id    String?  // Simple string reference to manager ID
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+} 
