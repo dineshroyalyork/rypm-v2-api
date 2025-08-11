@@ -621,7 +621,7 @@ export class PropertiesService {
           where = {
             ...(rentalPref.bedrooms && this.extractStringValue(rentalPref.bedrooms) && { bedrooms: { gte: this.extractStringValue(rentalPref.bedrooms) } }),
             ...(rentalPref.bathrooms && this.extractStringValue(rentalPref.bathrooms) && { bathrooms: { gte: this.extractStringValue(rentalPref.bathrooms) } }),
-            ...(rentalPref.property_type && { property_type: rentalPref.property_type }),
+            // ...(rentalPref.property_type && { property_type: rentalPref.property_type }),
             ...(rentalPref.parking && this.extractNumericValue(rentalPref.parking) && {
               property_details: {
                 number_of_parking_spaces: { gte: this.extractNumericValue(rentalPref.parking) },
@@ -642,7 +642,7 @@ export class PropertiesService {
         if (bedrooms && this.extractStringValue(bedrooms)) where.bedrooms = { gte: this.extractStringValue(bedrooms) };
         if (bathrooms && this.extractStringValue(bathrooms)) where.bathrooms = { gte: this.extractStringValue(bathrooms) };
         if (search) where.name = { contains: search, mode: 'insensitive' };
-        if (property_type) where.property_type = property_type;
+        // if (property_type) where.property_type = property_type;
         if (parking && this.extractNumericValue(parking)) {
           where.property_details = {
             ...(where.property_details || {}),
