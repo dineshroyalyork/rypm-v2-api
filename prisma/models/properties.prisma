@@ -65,10 +65,12 @@ model properties {
   washer_dryer_in_unit         Boolean?
   // Timestamps
   created_at                   DateTime              @default(now())
-  updated_at                   DateTime              @default(now()) @updatedAt
+  updated_at                   DateTime              @updatedAt
   // Relations
   property_details             property_details?
   wishlist_property            wishlist_property[]
   property_attachments         PropertyAttachments[]
   tour_scheduled               tour_scheduled[]
+  property_assignments         property_assignments[]
+  showings                     showings[]
 }

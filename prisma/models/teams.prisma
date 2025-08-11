@@ -1,0 +1,13 @@
+model teams {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  // Relations
+  users       users[]
+
+  @@map("teams")
+} 

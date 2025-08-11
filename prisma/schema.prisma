@@ -300,6 +300,38 @@ model introductory_video {
   @@unique([tenant_id]) // Each tenant can have only one video (remove if you want multiple)
 }
 
+model leads {
+  id              String   @id @default(uuid())
+  user_id         String   // Assigned agent
+  tenant_id       String?  // If lead becomes a tenant
+  first_name      String
+  last_name       String
+  email           String
+  phone           String?
+  status          LeadStatus
+  source          String?   // e.g., "website", "referral", "walk-in"
+  notes           String?
+  assigned_date   DateTime @default(now())
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  // Relations
+  user            users    @relation(fields: [user_id], references: [id])
+  tenant          tenants? @relation(fields: [tenant_id], references: [id])
+
+  @@map("leads")
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL_SENT
+  NEGOTIATION
+  CLOSED_WON
+  CLOSED_LOST
+} 
+
 model Liked {
   id          String   @id @default(uuid())
   tenant_id   String   @unique
@@ -435,14 +467,34 @@ model properties {
   washer_dryer_in_unit         Boolean?
   // Timestamps
   created_at                   DateTime              @default(now())
-  updated_at                   DateTime              @default(now()) @updatedAt
+  updated_at                   DateTime              @updatedAt
   // Relations
   property_details             property_details?
   wishlist_property            wishlist_property[]
   property_attachments         PropertyAttachments[]
   tour_scheduled               tour_scheduled[]
+  property_assignments         property_assignments[]
+  showings                     showings[]
 }
 
+
+model property_assignments {
+  id          String   @id @default(uuid())
+  user_id     String   // Assigned agent
+  property_id String
+  assigned_at DateTime @default(now())
+  is_active   Boolean  @default(true)
+  notes       String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  // Relations
+  user        users    @relation(fields: [user_id], references: [id])
+  property    properties @relation(fields: [property_id], references: [id])
+
+  @@unique([user_id, property_id])
+  @@map("property_assignments")
+} 
 
 model PropertyAttachments {
   id          String         @id @default(uuid())
@@ -702,6 +754,33 @@ model rental_preference {
 }
 
 
+model showings {
+  id          String      @id @default(uuid())
+  user_id     String      // Agent managing the showing
+  property_id String
+  tenant_id   String?     // If tenant is interested
+  scheduled_at DateTime
+  status      ShowingStatus
+  notes       String?
+  created_at  DateTime    @default(now())
+  updated_at  DateTime    @updatedAt
+
+  // Relations
+  user        users       @relation(fields: [user_id], references: [id])
+  property    properties  @relation(fields: [property_id], references: [id])
+  tenant      tenants?    @relation(fields: [tenant_id], references: [id])
+
+  @@map("showings")
+}
+
+enum ShowingStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+} 
+
 model slots_availabilities {
   id          String   @id @default(uuid())
   property_id String?
@@ -716,6 +795,20 @@ model slots_availabilities {
   updated_at  DateTime @updatedAt
 }
 
+
+model teams {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  // Relations
+  users       users[]
+
+  @@map("teams")
+} 
 
 model tenants {
   id                    String   @id @default(uuid())
@@ -750,6 +843,8 @@ model tenants {
   introductory_video    introductory_video?
   tour_scheduled        tour_scheduled[] // One tenant can have multiple scheduled tours
   identity_verifications identity_verification[] // Added for identity verification relation
+  leads                 leads[] // One tenant can have multiple leads
+  showings              showings[] // One tenant can have multiple showings
 }
 
 
@@ -778,6 +873,81 @@ model tour_scheduled {
   @@index([tenant_id])
 }
 
+
+model user_permissions {
+  id          String   @id @default(uuid())
+  user_id     String
+  module      String   // e.g., "properties", "analytics", "system"
+  action      String   // e.g., "read", "write", "delete", "manage"
+  is_granted  Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  // Relations
+  user        users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, module, action])
+  @@map("user_permissions")
+} 
+
+model user_profiles {
+  id                String   @id @default(uuid())
+  user_id           String   @unique
+  avatar            String?
+  bio               String?
+  department        String?
+  position          String?
+  hire_date         DateTime?
+  salary            Float?
+  emergency_contact String?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  // Relations
+  user              users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+} 
+
+model users {
+  id                    String    @id @default(uuid())
+  email                 String    @unique
+  password              String
+  first_name            String
+  last_name             String
+  role                  UserRole
+  phone_number          String?
+  country_code          String?
+  is_active             Boolean   @default(true)
+  manager_id            String?   // For agents to reference their manager
+  team_id               String?   // For grouping users into teams
+  last_login            DateTime?
+  session_timeout       DateTime?
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+
+  // Relations
+  manager               users?    @relation("ManagerToAgent", fields: [manager_id], references: [id])
+  agents                users[]   @relation("ManagerToAgent")
+  team                  teams?    @relation(fields: [team_id], references: [id])
+  
+  // Profile and permissions
+  profile               user_profiles?
+  permissions           user_permissions[]
+  
+  // Work-related data
+  assigned_leads        leads[]
+  assigned_properties   property_assignments[]
+  showings              showings[]
+  
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  LEASING_AGENT
+} 
 
 model vehicles {
   id            String   @id @default(uuid())

@@ -31,4 +31,6 @@ model tenants {
   introductory_video    introductory_video?
   tour_scheduled        tour_scheduled[] // One tenant can have multiple scheduled tours
   identity_verifications identity_verification[] // Added for identity verification relation
+  leads                 leads[] // One tenant can have multiple leads
+  showings              showings[] // One tenant can have multiple showings
 }

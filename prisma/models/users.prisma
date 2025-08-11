@@ -1,0 +1,39 @@
+model users {
+  id                    String    @id @default(uuid())
+  email                 String    @unique
+  password              String
+  first_name            String
+  last_name             String
+  role                  UserRole
+  phone_number          String?
+  country_code          String?
+  is_active             Boolean   @default(true)
+  manager_id            String?   // For agents to reference their manager
+  team_id               String?   // For grouping users into teams
+  last_login            DateTime?
+  session_timeout       DateTime?
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+
+  // Relations
+  manager               users?    @relation("ManagerToAgent", fields: [manager_id], references: [id])
+  agents                users[]   @relation("ManagerToAgent")
+  team                  teams?    @relation(fields: [team_id], references: [id])
+  
+  // Profile and permissions
+  profile               user_profiles?
+  permissions           user_permissions[]
+  
+  // Work-related data
+  assigned_leads        leads[]
+  assigned_properties   property_assignments[]
+  showings              showings[]
+  
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  LEASING_AGENT
+} 

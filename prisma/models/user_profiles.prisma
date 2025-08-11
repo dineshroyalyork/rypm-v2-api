@@ -1,0 +1,18 @@
+model user_profiles {
+  id                String   @id @default(uuid())
+  user_id           String   @unique
+  avatar            String?
+  bio               String?
+  department        String?
+  position          String?
+  hire_date         DateTime?
+  salary            Float?
+  emergency_contact String?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  // Relations
+  user              users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+} 
