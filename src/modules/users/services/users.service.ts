@@ -215,7 +215,43 @@ export class UsersService {
       throw new ForbiddenException('Only admins can view all users');
     }
 
+    // Extract query parameters
+    const { role, is_active, search, page_number = 1, page_size = 10 } = query;
+
+    // Build where clause
+    const where: any = {
+      // Exclude admin users - only show managers and agents
+      role: {
+        in: ['MANAGER', 'LEASING_AGENT']
+      }
+    };
+
+    // Add role filter if specified
+    if (role && ['MANAGER', 'LEASING_AGENT'].includes(role)) {
+      where.role = role;
+    }
+
+    // Add active status filter if specified
+    if (is_active !== undefined) {
+      where.is_active = is_active === 'true';
+    }
+
+    // Add search filter if specified
+    if (search) {
+      where.OR = [
+        { first_name: { contains: search, mode: 'insensitive' } },
+        { last_name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    // Calculate pagination
+    const skip = (Number(page_number) - 1) * Number(page_size);
+    const take = Number(page_size);
+
+    // Get users with pagination
     const users = await this.prisma.users.findMany({
+      where,
       include: {
         profile: true,
         team: true,
@@ -238,13 +274,27 @@ export class UsersService {
           },
         },
       },
+      skip,
+      take,
+      orderBy: {
+        created_at: 'desc'
+      }
     });
+
+    // Get total count for pagination
+    const totalCount = await this.prisma.users.count({ where });
 
     return {
       statusCode: 200,
       success: true,
-      message: 'Users retrieved successfully',
+      message: 'Managers and agents retrieved successfully',
       data: users,
+      pagination: {
+        page_number: Number(page_number),
+        page_size: Number(page_size),
+        total_count: totalCount,
+        total_pages: Math.ceil(totalCount / Number(page_size))
+      }
     };
   }
 
@@ -435,5 +485,250 @@ export class UsersService {
       return !!agent;
     }
     return false;
+  }
+
+  // Lead (Tenant) Management Methods
+  async getAgentLeads(agentId: string) {
+
+    const leads = await this.prisma.tenants.findMany({
+      where: {
+        assigned_agent: {
+          some: { id: agentId }
+        }
+      },
+      include: {
+        personal_informations: true,
+        rental_preference: true,
+        tour_scheduled: {
+          include: {
+            property: true
+          }
+        }
+      }
+    });
+
+    return {
+      statusCode: 200,
+      success: true,
+      message: 'Agent leads retrieved successfully',
+      data: leads,
+    };
+  }
+
+  async getManagerTeamLeads(managerId: string, currentUser: any) {
+    // Only admins can view manager team leads
+    if (currentUser.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can view manager team leads');
+    }
+
+    // Get all agents under this manager
+    const agents = await this.prisma.users.findMany({
+      where: { manager_id: managerId },
+      select: { id: true }
+    });
+
+    const agentIds = agents.map(agent => agent.id);
+
+    // Get leads assigned to any of these agents
+    const leads = await this.prisma.tenants.findMany({
+      where: {
+        assigned_agent: {
+          some: {
+            id: { in: agentIds }
+          }
+        }
+      },
+      include: {
+        personal_informations: true,
+        rental_preference: true,
+        tour_scheduled: {
+          include: {
+            property: true
+          }
+        }
+      }
+    });
+
+    return {
+      statusCode: 200,
+      success: true,
+      message: 'Manager team leads retrieved successfully',
+      data: leads,
+    };
+  }
+
+  async assignLeadToAgent(tenantId: string, agentId: string, currentUser: any) {
+    // Only admins can assign leads
+    if (currentUser.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can assign leads');
+    }
+
+    // Verify the agent exists and is active
+    const agent = await this.prisma.users.findUnique({
+      where: { id: agentId, is_active: true }
+    });
+
+    if (!agent) {
+      throw new BadRequestException('Agent not found or inactive');
+    }
+
+    // Verify the tenant exists
+    const tenant = await this.prisma.tenants.findUnique({
+      where: { id: tenantId }
+    });
+
+    if (!tenant) {
+      throw new BadRequestException('Tenant not found');
+    }
+
+    // Assign the tenant to the agent
+    await this.prisma.users.update({
+      where: { id: agentId },
+      data: {
+        assigned_leads: {
+          connect: { id: tenantId }
+        }
+      }
+    });
+
+    return {
+      statusCode: 200,
+      success: true,
+      message: 'Lead assigned to agent successfully',
+      data: { tenantId, agentId },
+    };
+  }
+
+  async unassignLeadFromAgent(tenantId: string, currentUser: any) {
+    // Only admins can unassign leads
+    if (currentUser.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can unassign leads');
+    }
+
+    // Find all agents who have this tenant assigned
+    const agentsWithLead = await this.prisma.users.findMany({
+      where: {
+        assigned_leads: {
+          some: { id: tenantId }
+        }
+      },
+      select: { id: true }
+    });
+
+    // Remove the tenant from all agents
+    for (const agent of agentsWithLead) {
+      await this.prisma.users.update({
+        where: { id: agent.id },
+        data: {
+          assigned_leads: {
+            disconnect: { id: tenantId }
+          }
+        }
+      });
+    }
+
+    return {
+      statusCode: 200,
+      success: true,
+      message: 'Lead unassigned from all agents successfully',
+      data: { tenantId },
+    };
+  }
+
+  async getMyAssignedLeads(currentUser: any) {
+    if (!currentUser || !currentUser.sub) {
+      throw new UnauthorizedException('Authentication required');
+    }
+
+    let leads;
+    let message;
+
+    if (currentUser.role === 'ADMIN') {
+      // Admin sees all leads in the system
+      leads = await this.prisma.tenants.findMany({
+        include: {
+          personal_informations: true,
+          rental_preference: true,
+          tour_scheduled: {
+            include: {
+              property: true
+            }
+          },
+          assigned_agent: {
+            select: {
+              id: true,
+              first_name: true,
+              last_name: true,
+              email: true,
+              role: true
+            }
+          }
+        }
+      });
+      message = 'All leads retrieved successfully for admin';
+    } else if (currentUser.role === 'MANAGER') {
+      // Manager sees leads assigned to agents under them
+      const agentsUnderManager = await this.prisma.users.findMany({
+        where: { manager_id: currentUser.sub },
+        select: { id: true }
+      });
+
+      const agentIds = agentsUnderManager.map(agent => agent.id);
+
+      leads = await this.prisma.tenants.findMany({
+        where: {
+          assigned_agent: {
+            some: {
+              id: { in: agentIds }
+            }
+          }
+        },
+        include: {
+          personal_informations: true,
+          rental_preference: true,
+          tour_scheduled: {
+            include: {
+              property: true
+            }
+          },
+          assigned_agent: {
+            select: {
+              id: true,
+              first_name: true,
+              last_name: true,
+              email: true,
+              role: true
+            }
+          }
+        }
+      });
+      message = 'Team leads retrieved successfully for manager';
+    } else {
+      // LEASING_AGENT sees only their own assigned leads
+      leads = await this.prisma.tenants.findMany({
+        where: {
+          assigned_agent: {
+            some: { id: currentUser.sub }
+          }
+        },
+        include: {
+          personal_informations: true,
+          rental_preference: true,
+          tour_scheduled: {
+            include: {
+              property: true
+            }
+          }
+        }
+      });
+      message = 'Your assigned leads retrieved successfully';
+    }
+
+    return {
+      statusCode: 200,
+      success: true,
+      message,
+      data: leads,
+    };
   }
 } 

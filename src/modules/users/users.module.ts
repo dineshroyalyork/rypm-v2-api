@@ -7,6 +7,7 @@ import { PrismaService } from '@/shared/prisma/prisma.service';
 import { AuthMiddleware } from './middleware/auth.middleware';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { SharedModule } from '@/shared/shared.module';
+import { AuthGuard } from '../../shared/guards/auth.guard';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { SharedModule } from '@/shared/shared.module';
     }),
   ],
   controllers: [UsersController],
-  providers: [UsersService, PrismaService, JwtStrategy],
+  providers: [UsersService, PrismaService, JwtStrategy, AuthGuard],
   exports: [UsersService],
 })
 export class UsersModule {

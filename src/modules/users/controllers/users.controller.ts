@@ -6,6 +6,7 @@ import { LoginDto } from '../dto/login.dto';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { LoginSchema, CreateUserSchema, UpdateUserSchema } from '../dto';
 import { AdminGuard } from '../../../shared/guards/admin.guard';
+import { AuthGuard } from '../../../shared/guards/auth.guard';
 
 @Controller('v2/users')
 export class UsersController {
@@ -41,23 +42,44 @@ export class UsersController {
     return this.usersService.findAll(req.user, query);
   }
 
-  @Get(':id')
-  @UseGuards(AdminGuard)
-  async findOne(@Param('id') id: string, @Req() req: any) {
-    return this.usersService.findOne(id, req.user);
+  // Lead (Tenant) Management APIs - MUST come BEFORE wildcard routes
+  @Get('leads/assigned')
+  @UseGuards(AuthGuard) // Allow all authenticated users (ADMIN, MANAGER, LEASING_AGENT)
+  async getMyAssignedLeads(@Req() req: any) {
+    return this.usersService.getMyAssignedLeads(req.user);
   }
 
-  @Put(':id')
-  @UseGuards(AdminGuard)
-  @UsePipes(new ZodValidationPipe(UpdateUserSchema))
-  async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto, @Req() req: any) {
-    return this.usersService.update(id, updateUserDto, req.user);
+  @Get('my-leads')
+  @UseGuards(AuthGuard) // Allow all authenticated users (ADMIN, MANAGER, LEASING_AGENT)
+  async getMyLeads(@Req() req: any) {
+    return this.usersService.getMyAssignedLeads(req.user);
   }
 
-  @Delete(':id')
+  @Get('agent/:agentId/leads')
+  async getAgentLeads(@Param('agentId') agentId: string) {
+    return this.usersService.getAgentLeads(agentId);
+  }
+
+  @Get('manager/:managerId/leads')
   @UseGuards(AdminGuard)
-  async remove(@Param('id') id: string, @Req() req: any) {
-    return this.usersService.remove(id, req.user);
+  async getManagerTeamLeads(@Param('managerId') managerId: string, @Req() req: any) {
+    return this.usersService.getManagerTeamLeads(managerId, req.user);
+  }
+
+  @Post('leads/:tenantId/assign/:agentId')
+  @UseGuards(AdminGuard)
+  async assignLeadToAgent(
+    @Param('tenantId') tenantId: string,
+    @Param('agentId') agentId: string,
+    @Req() req: any,
+  ) {
+    return this.usersService.assignLeadToAgent(tenantId, agentId, req.user);
+  }
+
+  @Post('leads/:tenantId/unassign')
+  @UseGuards(AdminGuard)
+  async unassignLeadFromAgent(@Param('tenantId') tenantId: string, @Req() req: any) {
+    return this.usersService.unassignLeadFromAgent(tenantId, req.user);
   }
 
   @Get('manager/:managerId/agents')
@@ -80,5 +102,25 @@ export class UsersController {
   @UseGuards(AdminGuard)
   async unassignAgentFromManager(@Param('agentId') agentId: string, @Req() req: any) {
     return this.usersService.unassignAgentFromManager(agentId, req.user);
+  }
+
+  // Wildcard routes MUST come LAST
+  @Get(':id')
+  @UseGuards(AdminGuard)
+  async findOne(@Param('id') id: string, @Req() req: any) {
+    return this.usersService.findOne(id, req.user);
+  }
+
+  @Put(':id')
+  @UseGuards(AdminGuard)
+  @UsePipes(new ZodValidationPipe(UpdateUserSchema))
+  async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto, @Req() req: any) {
+    return this.usersService.update(id, updateUserDto, req.user);
+  }
+
+  @Delete(':id')
+  @UseGuards(AdminGuard)
+  async remove(@Param('id') id: string, @Req() req: any) {
+    return this.usersService.remove(id, req.user);
   }
 } 

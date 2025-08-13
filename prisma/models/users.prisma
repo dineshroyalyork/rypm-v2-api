@@ -6,6 +6,7 @@ model users {
   last_name             String
   role                  UserRole
   phone_number          String?
+  gmail                 String?
   country_code          String?
   is_active             Boolean   @default(true)
   manager_id            String?   // For agents to reference their manager
@@ -25,9 +26,7 @@ model users {
   permissions           user_permissions[]
   
   // Work-related data
-  assigned_leads        leads[]
-  assigned_properties   property_assignments[]
-  showings              showings[]
+  assigned_leads        tenants[]
   
   @@map("users")
 }

@@ -71,6 +71,4 @@ model properties {
   wishlist_property            wishlist_property[]
   property_attachments         PropertyAttachments[]
   tour_scheduled               tour_scheduled[]
-  property_assignments         property_assignments[]
-  showings                     showings[]
 }

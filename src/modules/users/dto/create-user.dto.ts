@@ -10,6 +10,7 @@ export const CreateUserSchema = z.object({
   country_code: z.string().optional(),
   manager_id: z.string().uuid().optional(),
   team_id: z.string().uuid().optional(),
+  gmail: z.string().email('Invalid email format').optional()
 });
 
 export type CreateUserDto = z.infer<typeof CreateUserSchema>; 

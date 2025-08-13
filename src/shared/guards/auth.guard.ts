@@ -1,12 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, Inject, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 
 @Injectable()
-export class UserGuard implements CanActivate {
-  constructor(
-    private jwtService: JwtService
-  ) {}
+export class AuthGuard implements CanActivate {
+  constructor(@Inject(JwtService) private jwtService: JwtService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -19,8 +17,17 @@ export class UserGuard implements CanActivate {
     try {
       const payload = await this.jwtService.verifyAsync(token);
       request.user = payload;
+      
+      // Allow all authenticated users (ADMIN, MANAGER, LEASING_AGENT)
+      if (!payload.role || !['ADMIN', 'MANAGER', 'LEASING_AGENT'].includes(payload.role)) {
+        throw new ForbiddenException('Invalid user role');
+      }
+      
       return true;
-    } catch {
+    } catch (error) {
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
       throw new UnauthorizedException('Invalid token');
     }
   }
