@@ -3,8 +3,10 @@ import { UsersService } from '../services/users.service';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { LoginDto } from '../dto/login.dto';
+import { ForgotPasswordDto } from '../dto/forgot-password.dto';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { ZodValidationPipe } from 'nestjs-zod';
-import { LoginSchema, CreateUserSchema, UpdateUserSchema } from '../dto';
+import { LoginSchema, CreateUserSchema, UpdateUserSchema, ForgotPasswordSchema, ResetPasswordSchema } from '../dto';
 import { AdminGuard } from '../../../shared/guards/admin.guard';
 import { AuthGuard } from '../../../shared/guards/auth.guard';
 
@@ -16,6 +18,18 @@ export class UsersController {
   @UsePipes(new ZodValidationPipe(LoginSchema))
   async login(@Body() loginDto: LoginDto) {
     return this.usersService.login(loginDto);
+  }
+
+  @Post('forgot-password')
+  @UsePipes(new ZodValidationPipe(ForgotPasswordSchema))
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return this.usersService.forgotPassword(forgotPasswordDto);
+  }
+
+  @Post('reset-password')
+  @UsePipes(new ZodValidationPipe(ResetPasswordSchema))
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.usersService.resetPassword(resetPasswordDto);
   }
 
   @Get('profile')

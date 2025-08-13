@@ -731,4 +731,93 @@ export class UsersService {
       data: leads,
     };
   }
+
+  // Forgot Password and Reset Password Methods
+  async forgotPassword(forgotPasswordDto: any) {
+    const { email } = forgotPasswordDto;
+
+    // Check if user exists
+    const user = await this.prisma.users.findUnique({
+      where: { email }
+    });
+
+    if (!user) {
+      // Don't reveal if user exists or not for security
+      return {
+        statusCode: 200,
+        success: true,
+        message: 'If the email exists, an OTP has been sent',
+        data: null
+      };
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Set expiration (15 minutes from now)
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+
+    // Save OTP request
+    await this.prisma.otp_requests.create({
+      data: {
+        identifier: email,
+        otp,
+        expires_at: expiresAt,
+        verified: false,
+        tenant_id: null // This is for users, not tenants
+      }
+    });
+
+    // TODO: Send email with OTP
+    // For now, we'll log it (remove this in production)
+    console.log(`OTP for ${email}: ${otp}`);
+
+    return {
+      statusCode: 200,
+      success: true,
+      message: 'If the email exists, an OTP has been sent',
+      data: null
+    };
+  }
+
+  async resetPassword(resetPasswordDto: any) {
+    const { email, otp, new_password } = resetPasswordDto;
+
+    // Find the OTP request
+    const otpRequest = await this.prisma.otp_requests.findFirst({
+      where: {
+        identifier: email,
+        otp,
+        verified: false,
+        expires_at: { gt: new Date() }
+      }
+    });
+
+    if (!otpRequest) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(new_password, 10);
+
+    // Update user password
+    await this.prisma.users.update({
+      where: { email },
+      data: { password: hashedPassword }
+    });
+
+    // Mark OTP as verified
+    await this.prisma.otp_requests.update({
+      where: { id: otpRequest.id },
+      data: { verified: true }
+    });
+
+    return {
+      statusCode: 200,
+      success: true,
+      message: 'Password reset successfully',
+      data: null
+    };
+  }
 } 
